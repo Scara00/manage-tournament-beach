@@ -285,7 +285,7 @@ export function TournamentDetail() {
                           {tournament.structure.phases.silver} squadre
                         </div>
                       </div>
-                      {tournament.structure.phases.bronze && (
+                      {"bronze" in tournament.structure.phases && (
                         <div className="bg-orange-50 p-2 rounded border border-orange-200 col-span-2">
                           <div className="text-xs font-semibold text-orange-800">
                             🥉 BRONZE
