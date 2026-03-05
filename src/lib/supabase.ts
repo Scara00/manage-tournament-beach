@@ -304,6 +304,68 @@ export async function updateMatchScore(
     return data;
 }
 
+/**
+ * Genera automaticamente tutte le partite round-robin per un girone
+ * @param groupId ID del girone
+ * @param tournamentId ID del torneo
+ * @returns Risultato con numero di partite create
+ */
+export async function generateMatchesForGroup(
+    groupId: number,
+    tournamentId: number
+) {
+    try {
+        // 1. Recupera tutte le squadre del girone
+        const { data: teams, error: teamsError } = await supabase
+            .from('registered_teams')
+            .select('id, team_name')
+            .eq('group_id', groupId);
+
+        if (teamsError) throw teamsError;
+        if (!teams || teams.length < 2) {
+            throw new Error('Il girone deve avere almeno 2 squadre');
+        }
+
+        // 2. Genera le combinazioni round-robin
+        const { generateRoundRobinMatches } = await import('./matchGenerator');
+        const matchesToCreate = generateRoundRobinMatches(
+            teams as Array<{ id: number; team_name: string }>,
+            groupId,
+            tournamentId
+        );
+
+        // 3. Inserisci tutte le partite con status "scheduled"
+        const { data: createdMatches, error: insertError } = await supabase
+            .from('matches')
+            .insert(
+                matchesToCreate.map((match) => ({
+                    tournament_id: match.tournament_id,
+                    group_id: match.group_id,
+                    team1_id: match.team1_id,
+                    team2_id: match.team2_id,
+                    team1_name: match.team1_name,
+                    team2_name: match.team2_name,
+                    status: 'scheduled',
+                    team1_score: null,
+                    team2_score: null,
+                    winner_id: null,
+                }))
+            )
+            .select();
+
+        if (insertError) throw insertError;
+
+        return {
+            success: true,
+            message: `${createdMatches?.length || 0} partite create con successo`,
+            matchCount: createdMatches?.length || 0,
+        };
+    } catch (error: any) {
+        console.error('Errore nella generazione delle partite:', error);
+        throw error;
+    }
+}
+
 // ==========================================
 // ATHLETES
 // ==========================================

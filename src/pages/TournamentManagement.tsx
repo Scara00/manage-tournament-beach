@@ -27,7 +27,13 @@ import {
   Loader,
   AlertCircle,
 } from "lucide-react";
-import { getTournamentById } from "@/lib/supabase";
+import {
+  getTournamentById,
+  generateMatchesForGroup,
+  getTournamentMatches,
+  updateMatchStatus,
+  updateMatchScore,
+} from "@/lib/supabase";
 import { useAuth } from "@/context/useAuth";
 import { useTournamentManagement } from "@/hooks/useTournamentManagement";
 import type { Group, Match, RegisteredTeam, TournamentData } from "@/types";
@@ -49,6 +55,10 @@ export default function TournamentManagement() {
   const [editingTeam, setEditingTeam] = useState<number | null>(null);
   const [showRegisteredTeamsModal, setShowRegisteredTeamsModal] =
     useState(false);
+  const [generatingMatches, setGeneratingMatches] = useState<number | null>(
+    null,
+  );
+  const [savingMatch, setSavingMatch] = useState<number | null>(null);
   const [tempTeamData, setTempTeamData] = useState<{
     teamName: string;
     player1: string;
@@ -64,7 +74,6 @@ export default function TournamentManagement() {
     toggleGroup,
     toggleMatchGroup,
     startEditMatch,
-    startMatch,
     cancelEdit,
     setTempScores,
   } = useTournamentManagement();
@@ -116,6 +125,23 @@ export default function TournamentManagement() {
           });
           setRegisteredTeams(allTeams);
         }
+
+        // Carica le partite del torneo
+        const matchesData = await getTournamentMatches(tournamentId);
+        setMatches(
+          matchesData.map((m: any) => ({
+            id: m.id,
+            groupId: m.group_id,
+            team1Id: m.team1_id,
+            team2Id: m.team2_id,
+            team1Name: m.team1_name,
+            team2Name: m.team2_name,
+            team1Score: m.team1_score,
+            team2Score: m.team2_score,
+            status: m.status,
+            winner: m.winner_id,
+          })),
+        );
       } catch (error) {
         console.error("Error loading tournament:", error);
         setLoadError("Failed to load tournament data");
@@ -126,6 +152,40 @@ export default function TournamentManagement() {
 
     loadTournament();
   }, [tournamentId, isAuthenticated]);
+
+  // Funzione per generare le partite per un girone
+  const handleGenerateMatches = async (groupId: number) => {
+    if (!tournamentId) return;
+
+    setGeneratingMatches(groupId);
+    try {
+      const result = await generateMatchesForGroup(groupId, tournamentId);
+
+      // Ricarica le partite
+      const updatedMatches = await getTournamentMatches(tournamentId);
+      setMatches(
+        updatedMatches.map((m: any) => ({
+          id: m.id,
+          groupId: m.group_id,
+          team1Id: m.team1_id,
+          team2Id: m.team2_id,
+          team1Name: m.team1_name,
+          team2Name: m.team2_name,
+          team1Score: m.team1_score,
+          team2Score: m.team2_score,
+          status: m.status,
+          winner: m.winner_id,
+        })),
+      );
+
+      alert(`✅ ${result.message}`);
+    } catch (error: any) {
+      console.error("Errore nella generazione delle partite:", error);
+      alert(`❌ Errore: ${error.message}`);
+    } finally {
+      setGeneratingMatches(null);
+    }
+  };
 
   // Funzioni per la gestione team
   const getStatusBadge = (status: Match["status"]) => {
@@ -154,11 +214,38 @@ export default function TournamentManagement() {
     }
   };
 
-  const saveMatch = (matchId: number, matchStatus: string) => {
-    if (
-      matchStatus === "scheduled" &&
-      (!tempScores.team1 || !tempScores.team2)
-    ) {
+  // Inizia una partita (scheduled → in-progress)
+  const handleStartMatch = async (matchId: number) => {
+    setSavingMatch(matchId);
+    try {
+      // 1. Aggiorna su Supabase
+      await updateMatchStatus(matchId, "in-progress");
+
+      // 2. Aggiorna lo stato locale
+      setMatches(
+        matches.map((m) =>
+          m.id === matchId && m.status === "scheduled"
+            ? { ...m, status: "in-progress" as const }
+            : m,
+        ),
+      );
+
+      // 3. Inizia edit della partita
+      const match = matches.find((m) => m.id === matchId);
+      if (match) {
+        startEditMatch(match);
+      }
+    } catch (error: any) {
+      console.error("Errore nell'inizio della partita:", error);
+      alert(`❌ Errore: ${error.message}`);
+    } finally {
+      setSavingMatch(null);
+    }
+  };
+
+  // Salva i risultati della partita con integrazione Supabase
+  const saveMatch = async (matchId: number) => {
+    if (!tempScores.team1 || !tempScores.team2) {
       alert("Inserisci i punteggi prima di salvare");
       return;
     }
@@ -166,13 +253,12 @@ export default function TournamentManagement() {
     const team1Score = parseInt(tempScores.team1);
     const team2Score = parseInt(tempScores.team2);
 
+    // Valida punteggi beach volley
     if (
       team1Score < 0 ||
       team2Score < 0 ||
-      (Math.max(team1Score, team2Score) < 21 &&
-        Math.abs(team1Score - team2Score) < 2) ||
-      (Math.max(team1Score, team2Score) >= 21 &&
-        Math.abs(team1Score - team2Score) < 2)
+      Math.max(team1Score, team2Score) < 21 ||
+      Math.abs(team1Score - team2Score) < 2
     ) {
       alert(
         "Punteggio non valido per beach volley. Serve almeno 21 punti e 2 di differenza.",
@@ -180,28 +266,34 @@ export default function TournamentManagement() {
       return;
     }
 
-    const winner =
-      team1Score > team2Score
-        ? matches.find((m) => m.id === matchId)?.team1Id
-        : matches.find((m) => m.id === matchId)?.team2Id;
-
-    setMatches(
-      matches.map((match) => {
-        if (match.id === matchId) {
-          return {
-            ...match,
-            team1Score,
-            team2Score,
-            status: "completed" as const,
-            winner,
-          };
-        }
-        return match;
-      }),
-    );
-
     const matchData = matches.find((m) => m.id === matchId);
-    if (matchData) {
+    if (!matchData) return;
+
+    const winnerId =
+      team1Score > team2Score ? matchData.team1Id : matchData.team2Id;
+
+    setSavingMatch(matchId);
+    try {
+      // 1. Salva su Supabase
+      await updateMatchScore(matchId, team1Score, team2Score, winnerId);
+
+      // 2. Aggiorna stato locale matches
+      setMatches(
+        matches.map((match) => {
+          if (match.id === matchId) {
+            return {
+              ...match,
+              team1Score,
+              team2Score,
+              status: "completed" as const,
+              winner: winnerId,
+            };
+          }
+          return match;
+        }),
+      );
+
+      // 3. Aggiorna statistiche del girone
       setGroups(
         groups.map((group) => {
           if (group.id === matchData.groupId) {
@@ -239,9 +331,15 @@ export default function TournamentManagement() {
           return group;
         }),
       );
-    }
 
-    cancelEdit();
+      alert("✅ Risultato salvato con successo!");
+      cancelEdit();
+    } catch (error: any) {
+      console.error("Errore nel salvataggio della partita:", error);
+      alert(`❌ Errore nel salvataggio: ${error.message}`);
+    } finally {
+      setSavingMatch(null);
+    }
   };
 
   const startEditTeam = (team: RegisteredTeam) => {
@@ -420,7 +518,32 @@ export default function TournamentManagement() {
                       />
                     </button>
                     {!collapsedMatchGroups[group.id] && (
-                      <CardContent className="px-4 pb-3 pt-0">
+                      <CardContent className="px-4 pb-3 pt-3">
+                        {matchCount === 0 && (
+                          <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-xs text-yellow-800 mb-2">
+                              ⚠️ Nessuna partita generata. Clicca il bottone per
+                              crearle automaticamente.
+                            </p>
+                            <Button
+                              size="sm"
+                              onClick={() => handleGenerateMatches(group.id)}
+                              disabled={generatingMatches === group.id}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white text-xs h-8">
+                              {generatingMatches === group.id ? (
+                                <>
+                                  <span className="animate-spin mr-2">⚙️</span>
+                                  Generazione in corso...
+                                </>
+                              ) : (
+                                <>
+                                  🎯 Genera Partite Round-Robin (
+                                  {group.teams.length} squadre)
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
                         <div className="space-y-2">
                           {matches
                             .filter((match) => match.groupId === group.id)
@@ -472,10 +595,24 @@ export default function TournamentManagement() {
                                         <div className="flex gap-1.5">
                                           <Button
                                             size="sm"
-                                            onClick={() => startMatch(match.id)}
+                                            onClick={() =>
+                                              handleStartMatch(match.id)
+                                            }
+                                            disabled={savingMatch === match.id}
                                             className="h-7 text-xs bg-blue-600 hover:bg-blue-700 flex-1">
-                                            <Play className="h-3 w-3 mr-1" />
-                                            Inizia Partita
+                                            {savingMatch === match.id ? (
+                                              <>
+                                                <span className="animate-spin mr-1">
+                                                  ⚙️
+                                                </span>
+                                                Caricamento...
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Play className="h-3 w-3 mr-1" />
+                                                Inizia Partita
+                                              </>
+                                            )}
                                           </Button>
                                           <Button
                                             variant="outline"
@@ -535,12 +672,22 @@ export default function TournamentManagement() {
                                         <div className="flex gap-1.5">
                                           <Button
                                             size="sm"
-                                            onClick={() =>
-                                              saveMatch(match.id, match.status)
-                                            }
+                                            onClick={() => saveMatch(match.id)}
+                                            disabled={savingMatch === match.id}
                                             className="h-7 text-xs bg-green-600 hover:bg-green-700">
-                                            <Check className="h-3 w-3 mr-1" />
-                                            Salva Risultato
+                                            {savingMatch === match.id ? (
+                                              <>
+                                                <span className="animate-spin mr-1">
+                                                  ⚙️
+                                                </span>
+                                                Salvataggio...
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Check className="h-3 w-3 mr-1" />
+                                                Salva Risultato
+                                              </>
+                                            )}
                                           </Button>
                                           <Button
                                             variant="outline"
