@@ -29,22 +29,30 @@ export function Header() {
           </Link>
 
           {/* Navigation Links - Centro */}
-          {isAuthenticated && (
-            <div className="flex items-center gap-4">
-              <Link to="/">
-                <Button variant="ghost" size="sm">
-                  <Home className="h-4 w-4 mr-2" />
-                  Home
-                </Button>
-              </Link>
-              <Link to="/create-tournament">
-                <Button variant="ghost" size="sm">
-                  <Trophy className="h-4 w-4 mr-2" />
-                  Nuovo Torneo
-                </Button>
-              </Link>
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            {isAuthenticated && (
+              <>
+                <Link to="/">
+                  <Button variant="ghost" size="sm">
+                    <Home className="h-4 w-4 mr-2" />
+                    Home
+                  </Button>
+                </Link>
+                <Link to="/create-tournament">
+                  <Button variant="ghost" size="sm">
+                    <Trophy className="h-4 w-4 mr-2" />
+                    Nuovo Torneo
+                  </Button>
+                </Link>
+              </>
+            )}
+            <Link to="/join">
+              <Button variant="ghost" size="sm">
+                <Trophy className="h-4 w-4 mr-2" />
+                Sfoglia Tornei
+              </Button>
+            </Link>
+          </div>
 
           {/* Utente Loggato e Logout - Destra */}
           <div className="flex items-center gap-4">

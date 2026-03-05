@@ -8,18 +8,7 @@ import { useAuth } from "@/context/useAuth";
 import { LoginForm } from "@/components/LoginForm";
 import { getTournamentsWithTeamCount } from "@/lib/supabase";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
-interface Tournament {
-  id: number;
-  name: string;
-  date: string;
-  location: string;
-  status: string;
-  category: string;
-  structure: string;
-  participants: number;
-  created_by?: string;
-}
+import type { Tournament } from "@/types";
 
 // Mock data per ora - poi saranno sostituiti da dati reali
 const mockTournaments = [

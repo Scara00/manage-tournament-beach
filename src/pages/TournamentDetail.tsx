@@ -1,4 +1,5 @@
 import { useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,105 +12,66 @@ import {
   MapPin,
   Euro,
   Settings,
+  Loader,
 } from "lucide-react";
-
-// Mock data per ora - poi saranno sostituiti da dati reali
-const mockTournamentData = {
-  1: {
-    id: 1,
-    name: "Torneo Estivo 2026",
-    date: "2026-07-15",
-    participants: 16,
-    maxParticipants: 32,
-    status: "Attivo",
-    location: "Bagni Marco, Rimini",
-    category: "2x2 Misto",
-    description:
-      "Il torneo estivo più atteso dell'anno! Sfida i migliori team di beach volley della riviera romagnola in una competizione mozzafiato.",
-    entryFee: 25,
-    structure: {
-      groups: 4,
-      teamsPerGroup: 4,
-      phases: { gold: 8, silver: 8 },
-      description:
-        "4 gironi da 4 squadre. Fase Gold (8 squadre) e Silver (8 squadre).",
-    },
-    registrationDeadline: "2026-07-10",
-    prizes: ["Trophy + 500€", "200€", "100€"],
-  },
-  2: {
-    id: 2,
-    name: "Beach Master Cup",
-    date: "2026-08-20",
-    participants: 32,
-    maxParticipants: 32,
-    status: "Completato",
-    location: "Lido di Jesolo",
-    category: "2x2 Maschile",
-    description:
-      "La coppa dei maestri del beach volley. Tournament completato con grande successo!",
-    entryFee: 30,
-    structure: {
-      groups: 6,
-      teamsPerGroup: 6,
-      phases: { gold: 12, silver: 12, bronze: 8 },
-      description:
-        "6 gironi da 6 squadre. Fase Gold (12 squadre), Silver (12 squadre) e Bronze (8 squadre).",
-    },
-    registrationDeadline: "2026-08-15",
-    prizes: ["Trophy + 800€", "400€", "200€"],
-  },
-  3: {
-    id: 3,
-    name: "Championship Series",
-    date: "2026-09-10",
-    participants: 8,
-    maxParticipants: 16,
-    status: "In Preparazione",
-    location: "Viareggio Beach",
-    category: "2x2 Femminile",
-    description:
-      "Serie di campionati professionali per determinare il miglior team della stagione.",
-    entryFee: 40,
-    structure: {
-      groups: 2,
-      teamsPerGroup: 4,
-      phases: { gold: 4, silver: 4 },
-      description:
-        "2 gironi da 4 squadre. Fase Gold (4 squadre) e Silver (4 squadre).",
-    },
-    registrationDeadline: "2026-09-05",
-    prizes: ["Trophy + 1000€", "500€", "250€"],
-  },
-};
-
-const getStatusBadgeVariant = (status: string) => {
-  switch (status) {
-    case "Attivo":
-      return "default";
-    case "Completato":
-      return "secondary";
-    case "In Preparazione":
-      return "outline";
-    default:
-      return "outline";
-  }
-};
+import { getTournamentById } from "@/lib/supabase";
+import { useAuth } from "@/context/useAuth";
+import type { Tournament } from "@/types";
 
 export function TournamentDetail() {
   const { id } = useParams<{ id: string }>();
+  const { isAuthenticated, user } = useAuth();
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const tournamentId = id ? parseInt(id) : null;
 
-  if (
-    !tournamentId ||
-    !mockTournamentData[tournamentId as keyof typeof mockTournamentData]
-  ) {
+  useEffect(() => {
+    if (!tournamentId) {
+      setError("Invalid tournament ID");
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchTournament = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const data = await getTournamentById(tournamentId);
+        setTournament(data);
+      } catch (err) {
+        console.error("Error loading tournament:", err);
+        setError("Failed to load tournament details");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTournament();
+  }, [tournamentId]);
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Loader className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading tournament...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !tournament) {
     return (
       <div className="container mx-auto p-6">
         <div className="text-center py-12">
           <h2 className="text-2xl font-semibold mb-2">Torneo non trovato</h2>
           <p className="text-muted-foreground mb-4">
-            Il torneo che stai cercando non esiste o è stato rimosso.
+            {error ||
+              "Il torneo che stai cercando non esiste o è stato rimosso."}
           </p>
           <Link to="/">
             <Button>
@@ -122,8 +84,24 @@ export function TournamentDetail() {
     );
   }
 
-  const tournament =
-    mockTournamentData[tournamentId as keyof typeof mockTournamentData];
+  const totalParticipants =
+    tournament.groups?.reduce(
+      (sum, group) => sum + (group.registered_teams?.length || 0),
+      0,
+    ) || 0;
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "Attivo":
+        return "default";
+      case "Completato":
+        return "secondary";
+      case "In Preparazione":
+        return "outline";
+      default:
+        return "outline";
+    }
+  };
 
   return (
     <div className="container mx-auto p-6">
@@ -148,14 +126,18 @@ export function TournamentDetail() {
               </Badge>
             </div>
           </div>
-          {tournament.status === "Attivo" && (
-            <Link to={`/tournament/${tournament.id}/manage`}>
-              <Button>
-                <Settings className="mr-2 h-4 w-4" />
-                Gestisci Torneo
-              </Button>
-            </Link>
-          )}
+          {isAuthenticated &&
+            user &&
+            tournament.created_by === user.id &&
+            (tournament.status === "In Preparazione" ||
+              tournament.status === "Attivo") && (
+              <Link to={`/tournament/${tournament.id}/manage`}>
+                <Button>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Gestisci Torneo
+                </Button>
+              </Link>
+            )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -211,7 +193,7 @@ export function TournamentDetail() {
                   <div>
                     <p className="font-medium">Partecipanti</p>
                     <p className="text-sm text-muted-foreground">
-                      {tournament.participants} / {tournament.maxParticipants}{" "}
+                      {totalParticipants} / {tournament.max_participants}{" "}
                       iscritti
                     </p>
                   </div>
@@ -224,23 +206,85 @@ export function TournamentDetail() {
                   <div>
                     <p className="font-medium">Quota di Iscrizione</p>
                     <p className="text-sm text-muted-foreground">
-                      €{tournament.entryFee}
+                      €{tournament.entry_fee || 0}
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Descrizione</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm leading-relaxed">
-                  {tournament.description}
-                </p>
-              </CardContent>
-            </Card>
+            {tournament.description && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Descrizione</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm leading-relaxed">
+                    {tournament.description}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {tournament.groups && tournament.groups.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Gironi e Squadre Iscritte</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {tournament.groups.map((group) => (
+                    <div key={group.id} className="space-y-3">
+                      <div>
+                        <h3 className="font-semibold text-lg">{group.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {group.registered_teams?.length || 0} squadre iscritte
+                        </p>
+                      </div>
+
+                      {group.registered_teams &&
+                      group.registered_teams.length > 0 ? (
+                        <div className="space-y-2 bg-gray-50 p-4 rounded-lg">
+                          {group.registered_teams.map((team: any) => (
+                            <div
+                              key={team.id}
+                              className="flex justify-between items-start bg-white p-3 rounded border border-gray-200">
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">
+                                  {team.team_name}
+                                </p>
+                                {(team.player1_name || team.player2_name) && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {[team.player1_name, team.player2_name]
+                                      .filter(Boolean)
+                                      .join(" • ")}
+                                  </p>
+                                )}
+                              </div>
+                              {team.points !== undefined && (
+                                <div className="text-right ml-2">
+                                  <p className="text-sm font-semibold">
+                                    {team.points}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    punti
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">
+                          Nessuna squadra iscritta a questo girone
+                        </p>
+                      )}
+
+                      <Separator className="my-4" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>
@@ -263,40 +307,16 @@ export function TournamentDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm font-medium mb-1">Struttura Torneo</p>
-                  <div className="space-y-2">
+                  <p className="text-sm font-medium mb-2">Struttura Torneo</p>
+                  {tournament.structure ? (
                     <p className="text-sm text-muted-foreground">
-                      {tournament.structure.description}
+                      {tournament.structure}
                     </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-yellow-50 p-2 rounded border border-yellow-200">
-                        <div className="text-xs font-semibold text-yellow-800">
-                          🥇 GOLD
-                        </div>
-                        <div className="text-xs text-yellow-700">
-                          {tournament.structure.phases.gold} squadre
-                        </div>
-                      </div>
-                      <div className="bg-gray-50 p-2 rounded border border-gray-200">
-                        <div className="text-xs font-semibold text-gray-800">
-                          🥈 SILVER
-                        </div>
-                        <div className="text-xs text-gray-700">
-                          {tournament.structure.phases.silver} squadre
-                        </div>
-                      </div>
-                      {"bronze" in tournament.structure.phases && (
-                        <div className="bg-orange-50 p-2 rounded border border-orange-200 col-span-2">
-                          <div className="text-xs font-semibold text-orange-800">
-                            🥉 BRONZE
-                          </div>
-                          <div className="text-xs text-orange-700">
-                            {tournament.structure.phases.bronze} squadre
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      Nessuna struttura definita
+                    </p>
+                  )}
                 </div>
 
                 <Separator />
@@ -305,31 +325,17 @@ export function TournamentDetail() {
                   <p className="text-sm font-medium mb-1">
                     Scadenza Iscrizioni
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(
-                      tournament.registrationDeadline,
-                    ).toLocaleDateString("it-IT")}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Premi</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {tournament.prizes.map((prize, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-sm font-semibold">
-                          {index + 1}°
-                        </span>
-                      </div>
-                      <p className="text-sm">{prize}</p>
-                    </div>
-                  ))}
+                  {tournament.registration_deadline ? (
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(
+                        tournament.registration_deadline,
+                      ).toLocaleDateString("it-IT")}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      Non specificata
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -340,12 +346,17 @@ export function TournamentDetail() {
                   <CardTitle>Iscrizione</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Button className="w-full" size="lg">
-                    Iscriviti al Torneo
-                  </Button>
+                  <Link to="/join">
+                    <Button className="w-full" size="lg">
+                      Iscriviti al Torneo
+                    </Button>
+                  </Link>
                   <p className="text-xs text-muted-foreground text-center mt-2">
                     Posti disponibili:{" "}
-                    {tournament.maxParticipants - tournament.participants}
+                    {Math.max(
+                      0,
+                      (tournament.max_participants ?? 0) - totalParticipants,
+                    )}
                   </p>
                 </CardContent>
               </Card>

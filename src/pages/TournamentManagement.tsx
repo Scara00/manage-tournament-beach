@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,364 +24,110 @@ import {
   Save,
   X,
   ChevronDown,
+  Loader,
+  AlertCircle,
 } from "lucide-react";
-
-// Tipi di dati per il torneo
-interface Team {
-  id: number;
-  name: string;
-  points: number;
-  matchesPlayed: number;
-  wins: number;
-  losses: number;
-  setsWon: number;
-  setsLost: number;
-}
-
-interface Group {
-  id: number;
-  name: string;
-  teams: Team[];
-}
-
-interface Match {
-  id: number;
-  groupId: number;
-  team1Id: number;
-  team2Id: number;
-  team1Name: string;
-  team2Name: string;
-  team1Score?: number;
-  team2Score?: number;
-  status: "scheduled" | "in-progress" | "completed";
-  winner?: number;
-}
-
-interface RegisteredTeam {
-  id: number;
-  teamName: string;
-  player1?: string;
-  player2?: string;
-  groupId: number;
-}
+import { getTournamentById } from "@/lib/supabase";
+import { useAuth } from "@/context/useAuth";
+import { useTournamentManagement } from "@/hooks/useTournamentManagement";
+import type { Group, Match, RegisteredTeam, TournamentData } from "@/types";
 
 export default function TournamentManagement() {
-  // Stati per la gestione del torneo
-  const [groups, setGroups] = useState<Group[]>([
-    {
-      id: 1,
-      name: "Girone A",
-      teams: [
-        {
-          id: 1,
-          name: "Thunder Beach",
-          points: 6,
-          matchesPlayed: 3,
-          wins: 3,
-          losses: 0,
-          setsWon: 3,
-          setsLost: 0,
-        },
-        {
-          id: 2,
-          name: "Wave Riders",
-          points: 2,
-          matchesPlayed: 3,
-          wins: 1,
-          losses: 2,
-          setsWon: 1,
-          setsLost: 2,
-        },
-        {
-          id: 3,
-          name: "Sand Warriors",
-          points: 4,
-          matchesPlayed: 3,
-          wins: 2,
-          losses: 1,
-          setsWon: 2,
-          setsLost: 1,
-        },
-        {
-          id: 4,
-          name: "Beach Kings",
-          points: 0,
-          matchesPlayed: 3,
-          wins: 0,
-          losses: 3,
-          setsWon: 0,
-          setsLost: 3,
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "Girone B",
-      teams: [
-        {
-          id: 5,
-          name: "Volleyball Stars",
-          points: 6,
-          matchesPlayed: 3,
-          wins: 3,
-          losses: 0,
-          setsWon: 3,
-          setsLost: 0,
-        },
-        {
-          id: 6,
-          name: "Coast Crushers",
-          points: 0,
-          matchesPlayed: 3,
-          wins: 0,
-          losses: 3,
-          setsWon: 0,
-          setsLost: 3,
-        },
-        {
-          id: 7,
-          name: "Sun Spikers",
-          points: 4,
-          matchesPlayed: 3,
-          wins: 2,
-          losses: 1,
-          setsWon: 2,
-          setsLost: 1,
-        },
-        {
-          id: 8,
-          name: "Seaside Smash",
-          points: 2,
-          matchesPlayed: 3,
-          wins: 1,
-          losses: 2,
-          setsWon: 1,
-          setsLost: 2,
-        },
-      ],
-    },
-  ]);
+  const { id } = useParams<{ id: string }>();
+  const { user, isAuthenticated } = useAuth();
+  const tournamentId = id ? parseInt(id) : null;
 
-  const [matches, setMatches] = useState<Match[]>([
-    // Girone A
-    {
-      id: 1,
-      groupId: 1,
-      team1Id: 1,
-      team2Id: 2,
-      team1Name: "Thunder Beach",
-      team2Name: "Wave Riders",
-      team1Score: 21,
-      team2Score: 19,
-      status: "completed",
-      winner: 1,
-    },
-    {
-      id: 2,
-      groupId: 1,
-      team1Id: 3,
-      team2Id: 4,
-      team1Name: "Sand Warriors",
-      team2Name: "Beach Kings",
-      team1Score: 21,
-      team2Score: 15,
-      status: "completed",
-      winner: 3,
-    },
-    {
-      id: 3,
-      groupId: 1,
-      team1Id: 1,
-      team2Id: 3,
-      team1Name: "Thunder Beach",
-      team2Name: "Sand Warriors",
-      team1Score: 21,
-      team2Score: 18,
-      status: "completed",
-      winner: 1,
-    },
-    {
-      id: 4,
-      groupId: 1,
-      team1Id: 2,
-      team2Id: 4,
-      team1Name: "Wave Riders",
-      team2Name: "Beach Kings",
-      status: "scheduled",
-    },
-    {
-      id: 5,
-      groupId: 1,
-      team1Id: 1,
-      team2Id: 4,
-      team1Name: "Thunder Beach",
-      team2Name: "Beach Kings",
-      status: "scheduled",
-    },
-    {
-      id: 6,
-      groupId: 1,
-      team1Id: 2,
-      team2Id: 3,
-      team1Name: "Wave Riders",
-      team2Name: "Sand Warriors",
-      status: "in-progress",
-    },
-    // Girone B
-    {
-      id: 7,
-      groupId: 2,
-      team1Id: 5,
-      team2Id: 6,
-      team1Name: "Volleyball Stars",
-      team2Name: "Coast Crushers",
-      team1Score: 21,
-      team2Score: 12,
-      status: "completed",
-      winner: 5,
-    },
-    {
-      id: 8,
-      groupId: 2,
-      team1Id: 7,
-      team2Id: 8,
-      team1Name: "Sun Spikers",
-      team2Name: "Seaside Smash",
-      team1Score: 21,
-      team2Score: 19,
-      status: "completed",
-      winner: 7,
-    },
-    {
-      id: 9,
-      groupId: 2,
-      team1Id: 5,
-      team2Id: 7,
-      team1Name: "Volleyball Stars",
-      team2Name: "Sun Spikers",
-      team1Score: 21,
-      team2Score: 18,
-      status: "completed",
-      winner: 5,
-    },
-    {
-      id: 10,
-      groupId: 2,
-      team1Id: 6,
-      team2Id: 8,
-      team1Name: "Coast Crushers",
-      team2Name: "Seaside Smash",
-      status: "scheduled",
-    },
-    {
-      id: 11,
-      groupId: 2,
-      team1Id: 5,
-      team2Id: 8,
-      team1Name: "Volleyball Stars",
-      team2Name: "Seaside Smash",
-      status: "scheduled",
-    },
-    {
-      id: 12,
-      groupId: 2,
-      team1Id: 6,
-      team2Id: 7,
-      team1Name: "Coast Crushers",
-      team2Name: "Sun Spikers",
-      status: "in-progress",
-    },
-  ]);
+  // Stati per il caricamento dei dati reali
+  const [tournament, setTournament] = useState<TournamentData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [registeredTeams, setRegisteredTeams] = useState<RegisteredTeam[]>([]);
 
-  const [registeredTeams] = useState<RegisteredTeam[]>([
-    {
-      id: 1,
-      teamName: "Thunder Beach",
-      player1: "Marco Rossi",
-      player2: "Luca Bianchi",
-      groupId: 1,
-    },
-    {
-      id: 2,
-      teamName: "Wave Riders",
-      player1: "Alessandro Verde",
-      player2: "Francesco Neri",
-      groupId: 1,
-    },
-    {
-      id: 3,
-      teamName: "Sand Warriors",
-      player1: "Giuseppe Silvestri",
-      player2: "Antonio Gialli",
-      groupId: 1,
-    },
-    {
-      id: 4,
-      teamName: "Beach Kings",
-      player1: "Roberto Blu",
-      player2: "Stefano Viola",
-      groupId: 1,
-    },
-    {
-      id: 5,
-      teamName: "Volleyball Stars",
-      player1: "Diego Rosa",
-      player2: "Matteo Arancione",
-      groupId: 2,
-    },
-    {
-      id: 6,
-      teamName: "Coast Crushers",
-      player1: "Fabio Grigio",
-      player2: "Andrea Marrone",
-      groupId: 2,
-    },
-    {
-      id: 7,
-      teamName: "Sun Spikers",
-      player1: "Paolo Azzurro",
-      player2: "Simone Celeste",
-      groupId: 2,
-    },
-    {
-      id: 8,
-      teamName: "Seaside Smash",
-      player1: "Carlo Indaco",
-      player2: "Davide Turchese",
-      groupId: 2,
-    },
-  ]);
-
-  // Stati per collassare le sezioni
-  const [collapsedGroups, setCollapsedGroups] = useState<
-    Record<number, boolean>
-  >({});
-  const [collapsedMatchGroups, setCollapsedMatchGroups] = useState<
-    Record<number, boolean>
-  >({});
-
-  const toggleGroup = (groupId: number) =>
-    setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
-
-  const toggleMatchGroup = (groupId: number) =>
-    setCollapsedMatchGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
-
-  // Stati per l'editing
-  const [editingMatch, setEditingMatch] = useState<number | null>(null);
+  // Stati UI
   const [editingTeam, setEditingTeam] = useState<number | null>(null);
   const [showRegisteredTeamsModal, setShowRegisteredTeamsModal] =
     useState(false);
-  const [tempScores, setTempScores] = useState<{
-    team1: string;
-    team2: string;
-  }>({ team1: "", team2: "" });
   const [tempTeamData, setTempTeamData] = useState<{
     teamName: string;
     player1: string;
     player2: string;
   }>({ teamName: "", player1: "", player2: "" });
 
-  // Funzioni helper
+  // Use custom hook for match management
+  const {
+    collapsedGroups,
+    collapsedMatchGroups,
+    editingMatch,
+    tempScores,
+    toggleGroup,
+    toggleMatchGroup,
+    startEditMatch,
+    startMatch,
+    cancelEdit,
+    setTempScores,
+  } = useTournamentManagement();
+
+  // Carica i dati del torneo da Supabase
+  useEffect(() => {
+    if (!tournamentId || !isAuthenticated) {
+      setLoadError("Tournament ID or authentication missing");
+      setIsLoading(false);
+      return;
+    }
+
+    const loadTournament = async () => {
+      try {
+        const data = await getTournamentById(tournamentId);
+        setTournament(data);
+
+        if (data.groups && data.groups.length > 0) {
+          setGroups(
+            data.groups.map((group: any) => ({
+              id: group.id,
+              name: group.name,
+              teams: (group.registered_teams || []).map((team: any) => ({
+                id: team.id,
+                name: team.team_name,
+                points: team.points || 0,
+                matchesPlayed: 0,
+                wins: 0,
+                losses: 0,
+                setsWon: 0,
+                setsLost: 0,
+              })),
+            })),
+          );
+
+          const allTeams: RegisteredTeam[] = [];
+          data.groups.forEach((group: any) => {
+            if (group.registered_teams && group.registered_teams.length > 0) {
+              group.registered_teams.forEach((team: any) => {
+                allTeams.push({
+                  id: team.id,
+                  teamName: team.team_name,
+                  player1: team.player1_name,
+                  player2: team.player2_name,
+                  groupId: group.id,
+                });
+              });
+            }
+          });
+          setRegisteredTeams(allTeams);
+        }
+      } catch (error) {
+        console.error("Error loading tournament:", error);
+        setLoadError("Failed to load tournament data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTournament();
+  }, [tournamentId, isAuthenticated]);
+
+  // Funzioni per la gestione team
   const getStatusBadge = (status: Match["status"]) => {
     switch (status) {
       case "scheduled":
@@ -408,50 +154,7 @@ export default function TournamentManagement() {
     }
   };
 
-  const startEditMatch = (match: Match) => {
-    setEditingMatch(match.id);
-    setTempScores({
-      team1: match.team1Score?.toString() || "",
-      team2: match.team2Score?.toString() || "",
-    });
-  };
-
-  const startMatch = (matchId: number) => {
-    setMatches(
-      matches.map((match) => {
-        if (match.id === matchId && match.status === "scheduled") {
-          return {
-            ...match,
-            status: "in-progress" as const,
-          };
-        }
-        return match;
-      }),
-    );
-    cancelEdit();
-  };
-
-  const startEditTeam = (team: RegisteredTeam) => {
-    setEditingTeam(team.id);
-    setTempTeamData({
-      teamName: team.teamName,
-      player1: team.player1 || "",
-      player2: team.player2 || "",
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingMatch(null);
-    setTempScores({ team1: "", team2: "" });
-  };
-
-  const cancelEditTeam = () => {
-    setEditingTeam(null);
-    setTempTeamData({ teamName: "", player1: "", player2: "" });
-  };
-
   const saveMatch = (matchId: number, matchStatus: string) => {
-    // Se la partita è in stato scheduled e non ci sono punteggi, non possiamo salvarla
     if (
       matchStatus === "scheduled" &&
       (!tempScores.team1 || !tempScores.team2)
@@ -463,7 +166,6 @@ export default function TournamentManagement() {
     const team1Score = parseInt(tempScores.team1);
     const team2Score = parseInt(tempScores.team2);
 
-    // Validazione beach volley: set va a 21 con differenza di 2
     if (
       team1Score < 0 ||
       team2Score < 0 ||
@@ -498,7 +200,6 @@ export default function TournamentManagement() {
       }),
     );
 
-    // Aggiorna le statistiche dei gironi
     const matchData = matches.find((m) => m.id === matchId);
     if (matchData) {
       setGroups(
@@ -543,16 +244,30 @@ export default function TournamentManagement() {
     cancelEdit();
   };
 
+  const startEditTeam = (team: RegisteredTeam) => {
+    setEditingTeam(team.id);
+    setTempTeamData({
+      teamName: team.teamName,
+      player1: team.player1 || "",
+      player2: team.player2 || "",
+    });
+  };
+
+  const cancelEditTeam = () => {
+    setEditingTeam(null);
+    setTempTeamData({ teamName: "", player1: "", player2: "" });
+  };
+
   const saveTeam = () => {
     if (!tempTeamData.teamName.trim()) {
       alert("Il nome della squadra è obbligatorio");
       return;
     }
-    // In un'app reale, qui aggiorneresti il database
     alert("Squadra aggiornata con successo!");
     cancelEditTeam();
   };
 
+  // Calcola progressione torneo
   const totalMatches = matches.length;
   const completedMatches = matches.filter(
     (m) => m.status === "completed",
@@ -560,6 +275,60 @@ export default function TournamentManagement() {
   const progressPercentage = Math.round(
     (completedMatches / totalMatches) * 100,
   );
+
+  // Verifica autenticazione
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center py-12">
+          <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-semibold mb-2">Accesso Negato</h2>
+          <p className="text-muted-foreground mb-4">
+            Devi essere loggato per gestire un torneo.
+          </p>
+          <Link to="/">
+            <Button>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Torna alla Home
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Loader className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading tournament...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !tournament) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center py-12">
+          <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-semibold mb-2">Torneo non trovato</h2>
+          <p className="text-muted-foreground mb-4">
+            {loadError || "The tournament you're looking for doesn't exist."}
+          </p>
+          <Link to="/">
+            <Button>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Torna alla Home
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-4">

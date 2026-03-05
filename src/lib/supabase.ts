@@ -161,6 +161,51 @@ export async function createTeam(team: {
     return data;
 }
 
+export async function registerTeamToTournament(tournamentId: number, teamData: {
+    team_name: string;
+    player1_name?: string;
+    player2_name?: string;
+}) {
+    // 1. Get all groups for this tournament
+    const { data: groups, error: groupsError } = await supabase
+        .from('groups')
+        .select('id')
+        .eq('tournament_id', tournamentId);
+
+    if (groupsError) throw groupsError;
+    if (!groups || groups.length === 0) {
+        throw new Error('No groups found for this tournament');
+    }
+
+    // 2. Find group with least teams
+    const groupIds = groups.map(g => g.id);
+    const { data: teamsPerGroup, error: teamsError } = await supabase
+        .from('registered_teams')
+        .select('group_id', { count: 'exact' })
+        .in('group_id', groupIds);
+
+    if (teamsError) throw teamsError;
+
+    // Count teams per group
+    const counts: Record<number, number> = {};
+    groupIds.forEach(id => counts[id] = 0);
+    teamsPerGroup?.forEach(team => {
+        counts[team.group_id] = (counts[team.group_id] || 0) + 1;
+    });
+
+    // Find group with minimum teams
+    const groupWithLeastTeams = groupIds.reduce((prev, current) =>
+        counts[current] < counts[prev] ? current : prev
+    );
+
+    // 3. Register team to that group
+    return createTeam({
+        tournament_id: tournamentId,
+        group_id: groupWithLeastTeams,
+        ...teamData
+    });
+}
+
 export async function updateTeamStats(teamId: number, stats: {
     points?: number;
     matches_played?: number;
@@ -403,4 +448,81 @@ export async function onAuthStateChange(callback: (user: any) => void) {
     return supabase.auth.onAuthStateChange((_event, session) => {
         callback(session?.user || null);
     });
+}
+
+// ==========================================
+// ATHLETE PORTAL
+// ==========================================
+
+export async function searchTeamsBySurname(surname: string) {
+    const { data, error } = await supabase
+        .from('registered_teams')
+        .select(`
+            *,
+            tournament:tournament_id (
+                id,
+                name,
+                date,
+                location,
+                status,
+                category,
+                structure
+            ),
+            group:group_id (
+                id,
+                name
+            )
+        `)
+        .or(`player1_name.ilike.%${surname}%,player2_name.ilike.%${surname}%`);
+
+    if (error) throw error;
+    return data || [];
+}
+
+export async function getTournamentGroupsWithTeams(tournamentId: number) {
+    const { data, error } = await supabase
+        .from('groups')
+        .select(`
+            id,
+            name,
+            registered_teams (
+                id,
+                team_name,
+                player1_name,
+                player2_name,
+                points,
+                matches_played,
+                wins,
+                losses,
+                sets_won,
+                sets_lost
+            )
+        `)
+        .eq('tournament_id', tournamentId);
+
+    if (error) throw error;
+    return data || [];
+}
+
+export async function getTournamentMatches(tournamentId: number) {
+    const { data, error } = await supabase
+        .from('matches')
+        .select(`
+            id,
+            group_id,
+            team1_id,
+            team2_id,
+            team1_name,
+            team2_name,
+            team1_score,
+            team2_score,
+            status,
+            winner_id,
+            match_date
+        `)
+        .eq('tournament_id', tournamentId)
+        .order('match_date', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
 }

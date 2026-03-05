@@ -5,41 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  ArrowLeft,
-  Save,
-  Plus,
-  Trash2,
-  Users,
-  Info,
-  AlertCircle,
-} from "lucide-react";
+import { ArrowLeft, Save, Info, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/useAuth";
-import {
-  createTournament,
-  createGroup,
-  createTeam,
-  getCurrentUser,
-} from "@/lib/supabase";
-
-interface Participant {
-  id: number;
-  teamName: string;
-  player1: string;
-  player2: string;
-}
-
-interface TournamentStructure {
-  groups: number;
-  teamsPerGroup: number;
-  phases: {
-    gold: number;
-    silver: number;
-    bronze?: number;
-  };
-  description: string;
-}
+import { createTournament, createGroup, getCurrentUser } from "@/lib/supabase";
+import type { TournamentStructure } from "@/types";
 
 export function CreateTournament() {
   const navigate = useNavigate();
@@ -52,16 +22,11 @@ export function CreateTournament() {
     date: "",
     location: "",
     description: "",
-    maxParticipants: "",
+    maxParticipants: "16",
     registrationDeadline: "",
     entryFee: "",
     category: "2x2 Misto",
   });
-
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [participantMode, setParticipantMode] = useState<
-    "team-only" | "full-names"
-  >("team-only");
 
   // Calcola la struttura del torneo basata sul numero di partecipanti
   const calculateTournamentStructure = (
@@ -92,32 +57,38 @@ export function CreateTournament() {
       teamsPerGroup = Math.ceil(numTeams / groups);
     }
 
-    const firstTwoPerGroup = groups * 2; // Primi 2 di ogni girone
-    const thirdFourthPerGroup = groups * 2; // 3° e 4° di ogni girone
-    const remaining = numTeams - firstTwoPerGroup - thirdFourthPerGroup;
+    // Calcola quante squadre avanzano da ogni girone alle fasi finali
+    // Massimo 2 squadre per girone possono avanzare a Gold
+    const playersPerGroupGold = Math.min(2, teamsPerGroup);
+    // Solo se il girone ha 3+ squadre, possono avanzare 3° e 4°
+    const playersPerGroupSilver = Math.max(0, Math.min(2, teamsPerGroup - 2));
+
+    const goldTeams = playersPerGroupGold * groups;
+    const silverTeams = playersPerGroupSilver * groups;
+    const bronzeTeams = numTeams - goldTeams - silverTeams;
 
     let description = `${groups} gironi da ${teamsPerGroup} squadre. `;
 
-    if (remaining <= 0) {
-      description += `Fase Gold (${firstTwoPerGroup} squadre) e Silver (${thirdFourthPerGroup} squadre).`;
+    if (bronzeTeams <= 0) {
+      description += `Fase Gold (${goldTeams} squadre)${silverTeams > 0 ? ` e Silver (${silverTeams} squadre)` : ""}.`;
       return {
         groups,
         teamsPerGroup,
         phases: {
-          gold: firstTwoPerGroup,
-          silver: thirdFourthPerGroup,
+          gold: goldTeams,
+          silver: silverTeams,
         },
         description,
       };
     } else {
-      description += `Fase Gold (${firstTwoPerGroup} squadre), Silver (${thirdFourthPerGroup} squadre) e Bronze (${remaining} squadre).`;
+      description += `Fase Gold (${goldTeams} squadre), Silver (${silverTeams} squadre) e Bronze (${bronzeTeams} squadre).`;
       return {
         groups,
         teamsPerGroup,
         phases: {
-          gold: firstTwoPerGroup,
-          silver: thirdFourthPerGroup,
-          bronze: remaining,
+          gold: goldTeams,
+          silver: silverTeams,
+          bronze: bronzeTeams,
         },
         description,
       };
@@ -125,9 +96,7 @@ export function CreateTournament() {
   };
 
   const tournamentStructure = calculateTournamentStructure(
-    formData.maxParticipants
-      ? parseInt(formData.maxParticipants)
-      : participants.length,
+    formData.maxParticipants ? parseInt(formData.maxParticipants) : 16,
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -174,31 +143,9 @@ export function CreateTournament() {
           );
         }
       }
-      const groups = await Promise.all(groupPromises);
+      await Promise.all(groupPromises);
 
-      // 3. Create and register teams to groups
-      if (participants.length > 0 && groups.length > 0) {
-        const teamPromises: Promise<any>[] = [];
-        participants.forEach((participant, idx) => {
-          const groupIndex = Math.floor(
-            idx / (tournamentStructure?.teamsPerGroup || 1),
-          );
-          const group = groups[Math.min(groupIndex, groups.length - 1)];
-
-          teamPromises.push(
-            createTeam({
-              tournament_id: newTournament.id,
-              group_id: group.id,
-              team_name: participant.teamName,
-              player1_name: participant.player1 || "",
-              player2_name: participant.player2 || "",
-            }),
-          );
-        });
-        await Promise.all(teamPromises);
-      }
-
-      // 4. Navigate to tournament detail on success
+      // Navigate to tournament detail on success
       navigate(`/tournament/${newTournament.id}`);
     } catch (error: any) {
       console.error("Error creating tournament:", error);
@@ -214,32 +161,8 @@ export function CreateTournament() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const addParticipant = () => {
-    const newParticipant: Participant = {
-      id: Date.now(),
-      teamName: "",
-      player1: "",
-      player2: "",
-    };
-    setParticipants((prev) => [...prev, newParticipant]);
-  };
-
-  const removeParticipant = (id: number) => {
-    setParticipants((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const updateParticipant = (
-    id: number,
-    field: keyof Participant,
-    value: string,
-  ) => {
-    setParticipants((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
-    );
-  };
-
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
+    <div className="container mx-auto p-6 max-w-2xl">
       <div className="flex items-center gap-4 mb-4">
         <Link to="/">
           <Button variant="ghost" size="sm">
@@ -252,21 +175,18 @@ export function CreateTournament() {
       <div className="mb-4">
         <h1 className="text-2xl font-bold">Crea Nuovo Torneo</h1>
         <p className="text-muted-foreground">
-          Compila le informazioni per creare un nuovo torneo di beach volley
+          Compila le informazioni per creare un nuovo torneo di beach volley. I
+          partecipanti potranno iscriversi da una pagina pubblica
         </p>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {submitError && (
-          <div className="lg:col-span-2">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{submitError}</AlertDescription>
-            </Alert>
-          </div>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
         )}
         {/* Colonna sinistra - Informazioni del torneo */}
         <Card className="h-fit">
@@ -464,122 +384,8 @@ export function CreateTournament() {
           </CardContent>
         </Card>
 
-        {/* Colonna destra - Partecipanti */}
-        <Card className="h-fit">
-          <CardHeader className="pb-4">
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-lg">Partecipanti</CardTitle>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="participant-mode" className="text-xs">
-                  Modalità:
-                </Label>
-                <select
-                  id="participant-mode"
-                  value={participantMode}
-                  onChange={(e) =>
-                    setParticipantMode(
-                      e.target.value as "team-only" | "full-names",
-                    )
-                  }
-                  className="px-2 py-1 border border-input bg-background rounded text-xs">
-                  <option value="team-only">Solo Nome Squadra</option>
-                  <option value="full-names">Squadra + Giocatori</option>
-                </select>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 max-h-[400px] overflow-y-auto">
-              {participants.map((participant, index) => (
-                <div
-                  key={participant.id}
-                  className="border rounded-lg p-3 bg-muted/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Users className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-medium text-xs">
-                      Squadra {index + 1}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeParticipant(participant.id)}
-                      className="ml-auto p-1 h-6 w-6 text-red-500 hover:text-red-700">
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Nome Squadra"
-                      value={participant.teamName}
-                      onChange={(e) =>
-                        updateParticipant(
-                          participant.id,
-                          "teamName",
-                          e.target.value,
-                        )
-                      }
-                      className="text-sm"
-                    />
-
-                    {participantMode === "full-names" && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input
-                          placeholder="Giocatore 1"
-                          value={participant.player1}
-                          onChange={(e) =>
-                            updateParticipant(
-                              participant.id,
-                              "player1",
-                              e.target.value,
-                            )
-                          }
-                          className="text-sm"
-                        />
-                        <Input
-                          placeholder="Giocatore 2"
-                          value={participant.player2}
-                          onChange={(e) =>
-                            updateParticipant(
-                              participant.id,
-                              "player2",
-                              e.target.value,
-                            )
-                          }
-                          className="text-sm"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addParticipant}
-                className="w-full"
-                size="sm">
-                <Plus className="mr-2 h-3 w-3" />
-                Aggiungi Squadra
-              </Button>
-
-              {participants.length > 0 && (
-                <p className="text-xs text-muted-foreground text-center">
-                  {participants.length} squadre aggiunte
-                  {formData.maxParticipants &&
-                    ` (max: ${formData.maxParticipants})`}
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Bottoni di azione - full width sotto entrambe le colonne */}
-        <div className="lg:col-span-2 flex gap-4 pt-2">
+        {/* Bottoni di azione */}
+        <div className="flex gap-4 pt-2">
           <Button
             type="submit"
             className="flex-1"

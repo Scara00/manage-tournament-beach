@@ -4,6 +4,7 @@ import { CreateTournament } from "@/pages/CreateTournament";
 import { TournamentDetail } from "@/pages/TournamentDetail";
 import TournamentManagement from "./pages/TournamentManagement";
 import { AthletePortal } from "./pages/AthletePortal";
+import { BrowseTournaments } from "@/pages/BrowseTournaments";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Header } from "@/components/Header";
@@ -16,6 +17,7 @@ export function App() {
         <div className="min-h-screen bg-background">
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/join" element={<BrowseTournaments />} />
             <Route
               path="/create-tournament"
               element={
