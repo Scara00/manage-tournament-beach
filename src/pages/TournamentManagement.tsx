@@ -6,6 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   Trophy,
   Users,
@@ -351,7 +359,6 @@ export default function TournamentManagement() {
   const [collapsedMatchGroups, setCollapsedMatchGroups] = useState<
     Record<number, boolean>
   >({});
-  const [teamsCollapsed, setTeamsCollapsed] = useState(false);
 
   const toggleGroup = (groupId: number) =>
     setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
@@ -362,6 +369,8 @@ export default function TournamentManagement() {
   // Stati per l'editing
   const [editingMatch, setEditingMatch] = useState<number | null>(null);
   const [editingTeam, setEditingTeam] = useState<number | null>(null);
+  const [showRegisteredTeamsModal, setShowRegisteredTeamsModal] =
+    useState(false);
   const [tempScores, setTempScores] = useState<{
     team1: string;
     team2: string;
@@ -407,6 +416,21 @@ export default function TournamentManagement() {
     });
   };
 
+  const startMatch = (matchId: number) => {
+    setMatches(
+      matches.map((match) => {
+        if (match.id === matchId && match.status === "scheduled") {
+          return {
+            ...match,
+            status: "in-progress" as const,
+          };
+        }
+        return match;
+      }),
+    );
+    cancelEdit();
+  };
+
   const startEditTeam = (team: RegisteredTeam) => {
     setEditingTeam(team.id);
     setTempTeamData({
@@ -426,7 +450,16 @@ export default function TournamentManagement() {
     setTempTeamData({ teamName: "", player1: "", player2: "" });
   };
 
-  const saveMatch = (matchId: number) => {
+  const saveMatch = (matchId: number, matchStatus: string) => {
+    // Se la partita è in stato scheduled e non ci sono punteggi, non possiamo salvarla
+    if (
+      matchStatus === "scheduled" &&
+      (!tempScores.team1 || !tempScores.team2)
+    ) {
+      alert("Inserisci i punteggi prima di salvare");
+      return;
+    }
+
     const team1Score = parseInt(tempScores.team1);
     const team2Score = parseInt(tempScores.team2);
 
@@ -466,15 +499,15 @@ export default function TournamentManagement() {
     );
 
     // Aggiorna le statistiche dei gironi
-    const match = matches.find((m) => m.id === matchId);
-    if (match) {
+    const matchData = matches.find((m) => m.id === matchId);
+    if (matchData) {
       setGroups(
         groups.map((group) => {
-          if (group.id === match.groupId) {
+          if (group.id === matchData.groupId) {
             return {
               ...group,
               teams: group.teams.map((team) => {
-                if (team.id === match.team1Id) {
+                if (team.id === matchData.team1Id) {
                   const won = team1Score > team2Score;
                   return {
                     ...team,
@@ -486,7 +519,7 @@ export default function TournamentManagement() {
                     matchesPlayed: team.matchesPlayed + 1,
                   };
                 }
-                if (team.id === match.team2Id) {
+                if (team.id === matchData.team2Id) {
                   const won = team2Score > team1Score;
                   return {
                     ...team,
@@ -531,35 +564,53 @@ export default function TournamentManagement() {
   return (
     <div className="min-h-screen p-4">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="mb-6 space-y-4">
+        {/* Back Button */}
         <Link to="/">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Torna alla Home
           </Button>
         </Link>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold leading-tight">
-            Gestione Torneo — Torneo Estivo 2026
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Gestisci i gironi e i risultati delle partite
-          </p>
-        </div>
-        {/* Progresso inline nell'header */}
-        <div className="hidden sm:flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground text-xs">
-            {completedMatches}/{totalMatches} partite
-          </span>
-          <div className="w-24 bg-gray-200 rounded-full h-1.5">
-            <div
-              className="bg-blue-600 h-1.5 rounded-full transition-all"
-              style={{ width: `${progressPercentage}%` }}
-            />
+
+        {/* Title and Info */}
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold leading-tight">
+              Gestione Torneo — Torneo Estivo 2026
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gestisci i gironi e i risultati delle partite
+            </p>
           </div>
-          <span className="text-xs font-medium text-blue-700">
-            {progressPercentage}%
-          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRegisteredTeamsModal(true)}
+              className="flex items-center gap-1.5">
+              <Users className="h-4 w-4" />
+              Squadre Iscritte
+              <Badge variant="secondary" className="ml-1 text-xs">
+                {registeredTeams.length}
+              </Badge>
+            </Button>
+            {/* Progresso inline nell'header */}
+            <div className="hidden sm:flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground text-xs">
+                {completedMatches}/{totalMatches} partite
+              </span>
+              <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                <div
+                  className="bg-blue-600 h-1.5 rounded-full transition-all"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+              <span className="text-xs font-medium text-blue-700">
+                {progressPercentage}%
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -626,78 +677,112 @@ export default function TournamentManagement() {
                                     size="sm"
                                     onClick={() => startEditMatch(match)}
                                     className={`h-6 px-2 text-xs shrink-0 ${
-                                      match.status !== "completed"
+                                      match.status === "scheduled"
                                         ? "text-blue-600 hover:text-blue-800"
-                                        : "text-gray-500 hover:text-gray-700"
+                                        : match.status === "in-progress"
+                                          ? "text-orange-600 hover:text-orange-800"
+                                          : "text-gray-500 hover:text-gray-700"
                                     }`}>
                                     <Edit className="h-2.5 w-2.5 mr-1" />
-                                    {match.status !== "completed"
-                                      ? "Inserisci"
-                                      : "Modifica"}
+                                    {match.status === "scheduled"
+                                      ? "Inizia"
+                                      : match.status === "in-progress"
+                                        ? "Inserisci Risultato"
+                                        : "Modifica"}
                                   </Button>
                                 </div>
 
                                 {editingMatch === match.id ? (
                                   <div className="mt-2 space-y-2 bg-white p-2.5 rounded border">
-                                    <p className="text-xs text-muted-foreground">
-                                      💡 Set da 21 punti con differenza di 2.
-                                    </p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div>
-                                        <label className="text-xs font-medium text-blue-600 block mb-1">
-                                          {match.team1Name}
-                                        </label>
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          max="50"
-                                          placeholder="0"
-                                          className="h-8 text-center font-semibold"
-                                          value={tempScores.team1}
-                                          onChange={(e) =>
-                                            setTempScores((prev) => ({
-                                              ...prev,
-                                              team1: e.target.value,
-                                            }))
-                                          }
-                                        />
+                                    {match.status === "scheduled" ? (
+                                      <div className="space-y-2">
+                                        <p className="text-xs text-muted-foreground">
+                                          📋 Inizia questa partita per metterla
+                                          in corso
+                                        </p>
+                                        <div className="flex gap-1.5">
+                                          <Button
+                                            size="sm"
+                                            onClick={() => startMatch(match.id)}
+                                            className="h-7 text-xs bg-blue-600 hover:bg-blue-700 flex-1">
+                                            <Play className="h-3 w-3 mr-1" />
+                                            Inizia Partita
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={cancelEdit}
+                                            className="h-7 text-xs">
+                                            Annulla
+                                          </Button>
+                                        </div>
                                       </div>
-                                      <div>
-                                        <label className="text-xs font-medium text-red-600 block mb-1">
-                                          {match.team2Name}
-                                        </label>
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          max="50"
-                                          placeholder="0"
-                                          className="h-8 text-center font-semibold"
-                                          value={tempScores.team2}
-                                          onChange={(e) =>
-                                            setTempScores((prev) => ({
-                                              ...prev,
-                                              team2: e.target.value,
-                                            }))
-                                          }
-                                        />
+                                    ) : (
+                                      <div className="space-y-2">
+                                        <p className="text-xs text-muted-foreground">
+                                          💡 Set da 21 punti con differenza di
+                                          2.
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="text-xs font-medium text-blue-600 block mb-1">
+                                              {match.team1Name}
+                                            </label>
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              max="50"
+                                              placeholder="0"
+                                              className="h-8 text-center font-semibold"
+                                              value={tempScores.team1}
+                                              onChange={(e) =>
+                                                setTempScores((prev) => ({
+                                                  ...prev,
+                                                  team1: e.target.value,
+                                                }))
+                                              }
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-xs font-medium text-red-600 block mb-1">
+                                              {match.team2Name}
+                                            </label>
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              max="50"
+                                              placeholder="0"
+                                              className="h-8 text-center font-semibold"
+                                              value={tempScores.team2}
+                                              onChange={(e) =>
+                                                setTempScores((prev) => ({
+                                                  ...prev,
+                                                  team2: e.target.value,
+                                                }))
+                                              }
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="flex gap-1.5">
+                                          <Button
+                                            size="sm"
+                                            onClick={() =>
+                                              saveMatch(match.id, match.status)
+                                            }
+                                            className="h-7 text-xs bg-green-600 hover:bg-green-700">
+                                            <Check className="h-3 w-3 mr-1" />
+                                            Salva Risultato
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={cancelEdit}
+                                            className="h-7 text-xs">
+                                            Annulla
+                                          </Button>
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="flex gap-1.5">
-                                      <Button
-                                        size="sm"
-                                        onClick={() => saveMatch(match.id)}
-                                        className="h-7 text-xs bg-green-600 hover:bg-green-700">
-                                        <Check className="h-3 w-3 mr-1" />
-                                        Salva
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={cancelEdit}
-                                        className="h-7 text-xs">
-                                        Annulla
-                                      </Button>
-                                    </div>
+                                    )}
                                   </div>
                                 ) : (
                                   match.status === "completed" && (
@@ -737,137 +822,6 @@ export default function TournamentManagement() {
                 );
               })}
             </div>
-          </div>
-
-          {/* Sezione Squadre Iscritte */}
-          <div>
-            <Card>
-              <button
-                type="button"
-                onClick={() => setTeamsCollapsed((v) => !v)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors rounded-t-xl">
-                <span className="text-sm font-semibold flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5" />
-                  Squadre Iscritte
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {registeredTeams.length}
-                  </Badge>
-                </span>
-                <ChevronDown
-                  className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-                    teamsCollapsed ? "-rotate-90" : ""
-                  }`}
-                />
-              </button>
-              {!teamsCollapsed && (
-                <CardContent className="px-4 pb-4 pt-0">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                    {registeredTeams.map((team) => (
-                      <div
-                        key={team.id}
-                        className="border rounded-lg p-2.5 bg-gray-50/50">
-                        {editingTeam === team.id ? (
-                          <div className="space-y-1.5">
-                            <Input
-                              placeholder="Nome squadra"
-                              className="h-6 text-xs"
-                              value={tempTeamData.teamName}
-                              onChange={(e) =>
-                                setTempTeamData((prev) => ({
-                                  ...prev,
-                                  teamName: e.target.value,
-                                }))
-                              }
-                            />
-                            <Input
-                              placeholder="Giocatore 1"
-                              className="h-6 text-xs"
-                              value={tempTeamData.player1}
-                              onChange={(e) =>
-                                setTempTeamData((prev) => ({
-                                  ...prev,
-                                  player1: e.target.value,
-                                }))
-                              }
-                            />
-                            <Input
-                              placeholder="Giocatore 2"
-                              className="h-6 text-xs"
-                              value={tempTeamData.player2}
-                              onChange={(e) =>
-                                setTempTeamData((prev) => ({
-                                  ...prev,
-                                  player2: e.target.value,
-                                }))
-                              }
-                            />
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                onClick={() => saveTeam()}
-                                className="h-6 text-xs flex-1 bg-green-600 hover:bg-green-700">
-                                <Save className="h-2.5 w-2.5 mr-1" />
-                                Salva
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={cancelEditTeam}
-                                className="h-6 px-2">
-                                <X className="h-2.5 w-2.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div className="flex items-start justify-between gap-1">
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1 mb-0.5">
-                                  <div
-                                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                      team.groupId === 1
-                                        ? "bg-blue-500"
-                                        : "bg-green-500"
-                                    }`}
-                                  />
-                                  <span className="font-semibold text-xs truncate">
-                                    {team.teamName}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-muted-foreground space-y-0.5 ml-2.5">
-                                  {team.player1 && (
-                                    <div className="truncate">
-                                      👤 {team.player1}
-                                    </div>
-                                  )}
-                                  {team.player2 && (
-                                    <div className="truncate">
-                                      👤 {team.player2}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => startEditTeam(team)}
-                                className="h-5 w-5 p-0 shrink-0 text-muted-foreground hover:text-blue-600">
-                                <Edit className="h-2.5 w-2.5" />
-                              </Button>
-                            </div>
-                            <Badge
-                              variant="outline"
-                              className="text-xs mt-1.5 h-4 px-1">
-                              {team.groupId === 1 ? "Girone A" : "Girone B"}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              )}
-            </Card>
           </div>
         </div>
 
@@ -991,6 +945,127 @@ export default function TournamentManagement() {
           </Card>
         </div>
       </div>
+
+      {/* Modale Squadre Iscritte */}
+      <AlertDialog
+        open={showRegisteredTeamsModal}
+        onOpenChange={setShowRegisteredTeamsModal}>
+        <AlertDialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Squadre Iscritte ({registeredTeams.length})
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <div className="flex flex-col gap-3 py-4 px-4">
+              {registeredTeams.map((team) => (
+                <div
+                  key={team.id}
+                  className="border rounded-lg p-3 bg-gray-50/50">
+                  {editingTeam === team.id ? (
+                    <div className="space-y-1.5">
+                      <Input
+                        placeholder="Nome squadra"
+                        className="h-6 text-xs"
+                        value={tempTeamData.teamName}
+                        onChange={(e) =>
+                          setTempTeamData((prev) => ({
+                            ...prev,
+                            teamName: e.target.value,
+                          }))
+                        }
+                      />
+                      <Input
+                        placeholder="Giocatore 1"
+                        className="h-6 text-xs"
+                        value={tempTeamData.player1}
+                        onChange={(e) =>
+                          setTempTeamData((prev) => ({
+                            ...prev,
+                            player1: e.target.value,
+                          }))
+                        }
+                      />
+                      <Input
+                        placeholder="Giocatore 2"
+                        className="h-6 text-xs"
+                        value={tempTeamData.player2}
+                        onChange={(e) =>
+                          setTempTeamData((prev) => ({
+                            ...prev,
+                            player2: e.target.value,
+                          }))
+                        }
+                      />
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          onClick={() => saveTeam()}
+                          className="h-6 text-xs flex-1 bg-green-600 hover:bg-green-700">
+                          <Save className="h-2.5 w-2.5 mr-1" />
+                          Salva
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={cancelEditTeam}
+                          className="h-6 px-2">
+                          <X className="h-2.5 w-2.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <div
+                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                team.groupId === 1
+                                  ? "bg-blue-500"
+                                  : "bg-green-500"
+                              }`}
+                            />
+                            <span className="font-semibold text-xs truncate">
+                              {team.teamName}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground space-y-0.5 ml-2.5">
+                            {team.player1 && (
+                              <div className="truncate">👤 {team.player1}</div>
+                            )}
+                            {team.player2 && (
+                              <div className="truncate">👤 {team.player2}</div>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEditTeam(team)}
+                          className="h-5 w-5 p-0 shrink-0 text-muted-foreground hover:text-blue-600">
+                          <Edit className="h-2.5 w-2.5" />
+                        </Button>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="text-xs mt-1.5 h-4 px-1">
+                        {team.groupId === 1 ? "Girone A" : "Girone B"}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <AlertDialogFooter className="flex justify-end gap-2 mt-4">
+            <AlertDialogCancel className="mt-0">
+              <X className="h-4 w-4 mr-2" />
+              Chiudi
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

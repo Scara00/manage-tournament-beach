@@ -4,8 +4,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Plus, Trash2, Users, Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  ArrowLeft,
+  Save,
+  Plus,
+  Trash2,
+  Users,
+  Info,
+  AlertCircle,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/useAuth";
+import {
+  createTournament,
+  createGroup,
+  createTeam,
+  getCurrentUser,
+} from "@/lib/supabase";
 
 interface Participant {
   id: number;
@@ -27,6 +43,10 @@ interface TournamentStructure {
 
 export function CreateTournament() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     name: "",
     date: "",
@@ -35,7 +55,7 @@ export function CreateTournament() {
     maxParticipants: "",
     registrationDeadline: "",
     entryFee: "",
-    category: "2x2-misto",
+    category: "2x2 Misto",
   });
 
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -110,16 +130,84 @@ export function CreateTournament() {
       : participants.length,
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const tournamentData = {
-      ...formData,
-      participants: participants,
-      tournamentStructure: tournamentStructure,
-    };
-    console.log("Tournament data:", tournamentData);
-    // Qui andrà la logica per salvare il torneo
-    navigate("/");
+
+    if (!isAuthenticated) {
+      setSubmitError("You must be logged in to create a tournament");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      // Get current user from Supabase auth
+      const user = await getCurrentUser();
+      if (!user) {
+        setSubmitError("Unable to verify user. Please login again.");
+        return;
+      }
+
+      // 1. Create tournament
+      const newTournament = await createTournament(
+        {
+          name: formData.name,
+          date: formData.date,
+          location: formData.location,
+          status: "In Preparazione",
+          category: formData.category,
+          structure: tournamentStructure?.description || "",
+        },
+        user.id,
+      );
+
+      // 2. Create groups for this tournament
+      const groupPromises: Promise<any>[] = [];
+      if (tournamentStructure && tournamentStructure.groups > 0) {
+        for (let i = 0; i < tournamentStructure.groups; i++) {
+          groupPromises.push(
+            createGroup({
+              tournament_id: newTournament.id,
+              name: `Girone ${String.fromCharCode(65 + i)}`,
+            }),
+          );
+        }
+      }
+      const groups = await Promise.all(groupPromises);
+
+      // 3. Create and register teams to groups
+      if (participants.length > 0 && groups.length > 0) {
+        const teamPromises: Promise<any>[] = [];
+        participants.forEach((participant, idx) => {
+          const groupIndex = Math.floor(
+            idx / (tournamentStructure?.teamsPerGroup || 1),
+          );
+          const group = groups[Math.min(groupIndex, groups.length - 1)];
+
+          teamPromises.push(
+            createTeam({
+              tournament_id: newTournament.id,
+              group_id: group.id,
+              team_name: participant.teamName,
+              player1_name: participant.player1 || "",
+              player2_name: participant.player2 || "",
+            }),
+          );
+        });
+        await Promise.all(teamPromises);
+      }
+
+      // 4. Navigate to tournament detail on success
+      navigate(`/tournament/${newTournament.id}`);
+    } catch (error: any) {
+      console.error("Error creating tournament:", error);
+      setSubmitError(
+        error.message || "Failed to create tournament. Please try again.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -171,6 +259,15 @@ export function CreateTournament() {
       <form
         onSubmit={handleSubmit}
         className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {submitError && (
+          <div className="lg:col-span-2">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
+          </div>
+        )}
         {/* Colonna sinistra - Informazioni del torneo */}
         <Card className="h-fit">
           <CardHeader className="pb-4">
@@ -300,9 +397,9 @@ export function CreateTournament() {
                     handleInputChange("category", e.target.value)
                   }
                   className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm">
-                  <option value="2x2-maschile">2x2 Maschile</option>
-                  <option value="2x2-femminile">2x2 Femminile</option>
-                  <option value="2x2-misto">2x2 Misto</option>
+                  <option value="2x2 Maschile">2x2 Maschile</option>
+                  <option value="2x2 Femminile">2x2 Femminile</option>
+                  <option value="2x2 Misto">2x2 Misto</option>
                 </select>
               </div>
 
@@ -483,16 +580,32 @@ export function CreateTournament() {
 
         {/* Bottoni di azione - full width sotto entrambe le colonne */}
         <div className="lg:col-span-2 flex gap-4 pt-2">
-          <Button type="submit" className="flex-1" size="lg">
-            <Save className="mr-2 h-4 w-4" />
-            Crea Torneo
+          <Button
+            type="submit"
+            className="flex-1"
+            size="lg"
+            disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <span className="mr-2 h-4 w-4 inline-block animate-spin">
+                  ⚙️
+                </span>
+                Creazione in corso...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Crea Torneo
+              </>
+            )}
           </Button>
           <Link to="/" className="flex-1">
             <Button
               type="button"
               variant="outline"
               className="w-full"
-              size="lg">
+              size="lg"
+              disabled={isSubmitting}>
               Annulla
             </Button>
           </Link>
