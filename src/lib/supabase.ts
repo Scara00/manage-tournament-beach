@@ -588,3 +588,78 @@ export async function getTournamentMatches(tournamentId: number) {
     if (error) throw error;
     return data || [];
 }
+
+// ==========================================
+// REALTIME SUBSCRIPTIONS
+// ==========================================
+
+/**
+ * Subscribe ai cambiamenti realtime delle partite di un torneo
+ * Ascolta INSERT, UPDATE, DELETE sulla tabella matches
+ * @param tournamentId ID del torneo
+ * @param onMatchUpdate Callback quando una partita viene aggiornata
+ * @returns Funzione unsubscribe
+ */
+export function subscribeToTournamentMatches(
+    tournamentId: number,
+    onMatchUpdate: (match: any) => void
+) {
+    const channel = supabase
+        .channel(`matches:tournament_${tournamentId}`)
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'matches',
+                filter: `tournament_id=eq.${tournamentId}`,
+            },
+            (payload) => {
+                // payload.new contiene il record aggiornato
+                if (payload.new) {
+                    onMatchUpdate(payload.new);
+                }
+            }
+        )
+        .subscribe();
+
+    // Ritorna una funzione per unsubscribe
+    return () => {
+        supabase.removeChannel(channel);
+    };
+}
+
+/**
+ * Subscribe ai cambiamenti realtime delle statistiche di una squadra
+ * Ascolta UPDATE sulla tabella registered_teams
+ * @param teamId ID della squadra
+ * @param onTeamUpdate Callback quando la squadra viene aggiornata
+ * @returns Funzione unsubscribe
+ */
+export function subscribeToTeamStats(
+    teamId: number,
+    onTeamUpdate: (team: any) => void
+) {
+    const channel = supabase
+        .channel(`team:${teamId}`)
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'registered_teams',
+                filter: `id=eq.${teamId}`,
+            },
+            (payload) => {
+                if (payload.new) {
+                    onTeamUpdate(payload.new);
+                }
+            }
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
+}
+

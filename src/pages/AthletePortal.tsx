@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader, AlertCircle } from "lucide-react";
 import {
   searchTeamsBySurname,
   getTournamentGroupsWithTeams,
   getTournamentMatches,
+  subscribeToTournamentMatches,
 } from "@/lib/supabase";
 import { AthleteLogin } from "@/components/AthleteLogin";
 import { TournamentsList } from "@/components/TournamentsList";
@@ -78,6 +79,46 @@ export function AthletePortal() {
       setLoadingTournament(false);
     }
   };
+
+  // Sottoscrivi ai cambiamenti realtime delle partite
+  useEffect(() => {
+    if (!selectedTournamentId || !tournamentDetails) return;
+
+    // Sottoscrivi agli aggiornamenti delle partite
+    const unsubscribeMatches = subscribeToTournamentMatches(
+      selectedTournamentId,
+      (updatedMatch: any) => {
+        setTournamentDetails((prev) => {
+          if (!prev) return prev;
+
+          return {
+            ...prev,
+            matches: prev.matches.map((m) =>
+              m.id === updatedMatch.id
+                ? {
+                    id: updatedMatch.id,
+                    group_id: updatedMatch.group_id,
+                    team1_id: updatedMatch.team1_id,
+                    team2_id: updatedMatch.team2_id,
+                    team1_name: updatedMatch.team1_name,
+                    team2_name: updatedMatch.team2_name,
+                    team1_score: updatedMatch.team1_score,
+                    team2_score: updatedMatch.team2_score,
+                    status: updatedMatch.status,
+                    winner_id: updatedMatch.winner_id,
+                  }
+                : m,
+            ),
+          };
+        });
+      },
+    );
+
+    // Cleanup subscription quando il componente unmount
+    return () => {
+      unsubscribeMatches();
+    };
+  }, [selectedTournamentId, tournamentDetails]);
 
   if (!isLoggedIn) {
     return (
