@@ -28,16 +28,21 @@ export async function getTournamentsWithTeamCount() {
         .from('tournaments')
         .select(`
             *,
-            registered_teams (id)
+            groups (
+                registered_teams (id)
+            )
         `)
         .order('date', { ascending: false });
 
     if (error) throw error;
 
-    // Map data to include participants count
+    // Map data to include participants count from all groups
     return data?.map((tournament: any) => ({
         ...tournament,
-        participants: tournament.registered_teams?.length || 0,
+        participants: tournament.groups?.reduce(
+            (sum: number, group: any) => sum + (group.registered_teams?.length || 0),
+            0
+        ) || 0,
     })) || [];
 }
 

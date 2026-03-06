@@ -153,7 +153,7 @@ export function BrowseTournaments() {
                       <Users className="w-4 h-4 text-gray-400" />
                       <span className="text-sm">
                         {tournament.participants || 0}/
-                        {tournament.max_participants}
+                        {tournament.max_participants || "—"}
                       </span>
                     </div>
                     {tournament.entry_fee && (

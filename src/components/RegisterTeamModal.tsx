@@ -71,7 +71,9 @@ export function RegisterTeamModal({
 
   if (success) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div
+        className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 p-4"
+        style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
         <Card className="w-full max-w-md p-6">
           <div className="text-center">
             <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
@@ -90,7 +92,9 @@ export function RegisterTeamModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50 p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
       <Card className="w-full max-w-md">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold">Register Team</h2>
