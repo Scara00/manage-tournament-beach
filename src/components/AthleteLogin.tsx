@@ -25,9 +25,11 @@ export function AthleteLogin({
     <div className="min-h-screen p-4 flex items-center justify-center bg-gradient-to-b from-blue-50 to-background">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-center">Portale Atleti</CardTitle>
+          <CardTitle className="text-center text-lg sm:text-xl\">
+            Portale Atleti
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 sm:space-y-4\">
           <div>
             <p className="text-sm text-muted-foreground mb-3">
               Inserisci il tuo cognome per accedere al portale e visualizzare le

@@ -45,14 +45,18 @@ export function AthleteTournamentDetail({
   return (
     <div className="min-h-screen p-4">
       {/* Header */}
-      <div className="mb-6 space-y-4">
-        <Button variant="ghost" size="sm" onClick={onBackClick}>
+      <div className="mb-6 space-y-3 sm:space-y-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBackClick}
+          className="text-xs sm:text-sm">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Torna ai Tornei
         </Button>
 
         <div>
-          <h1 className="text-2xl font-bold leading-tight">
+          <h1 className="text-xl sm:text-2xl font-bold leading-tight">
             {tournament.name}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -61,34 +65,42 @@ export function AthleteTournamentDetail({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Sezione Principale */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
           {/* Info Team */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                 La Tua Squadra
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Nome Squadra</p>
-                  <p className="text-lg font-bold">{userTeam?.team_name}</p>
+                  <p className="text-base sm:text-lg font-bold">
+                    {userTeam?.team_name}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Girone</p>
-                  <p className="text-lg font-bold">{userGroup?.name}</p>
+                  <p className="text-base sm:text-lg font-bold">
+                    {userGroup?.name}
+                  </p>
                 </div>
               </div>
               <Separator />
               <div>
-                <p className="text-sm font-semibold mb-2">Atleti</p>
+                <p className="text-xs sm:text-sm font-semibold mb-2">Atleti</p>
                 <div className="space-y-1">
-                  <p className="text-sm">👤 {userTeam?.player1_name}</p>
-                  <p className="text-sm">👤 {userTeam?.player2_name}</p>
+                  <p className="text-xs sm:text-sm">
+                    👤 {userTeam?.player1_name}
+                  </p>
+                  <p className="text-xs sm:text-sm">
+                    👤 {userTeam?.player2_name}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -97,12 +109,12 @@ export function AthleteTournamentDetail({
           {/* Partite */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                 Le Tue Partite
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-1 sm:space-y-2">
               {userMatches.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Nessuna partita trovata
@@ -125,14 +137,14 @@ export function AthleteTournamentDetail({
 
                   return (
                     <Card key={match.id} className="bg-gray-50/50">
-                      <CardContent className="pt-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
+                      <CardContent className="pt-3 sm:pt-4">
+                        <div className="space-y-2 sm:space-y-3">
+                          <div className="flex items-center justify-between text-xs sm:text-sm">
                             <div>
-                              <p className="font-semibold">
+                              <p className="font-semibold line-clamp-1">
                                 {userTeam?.team_name}
                               </p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-muted-foreground\">
                                 vs {opponent}
                               </p>
                             </div>
@@ -140,16 +152,16 @@ export function AthleteTournamentDetail({
                               {match.status === "completed" &&
                               myScore !== undefined &&
                               oppScore !== undefined ? (
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center justify-end gap-1 sm:gap-2">
                                   <p
-                                    className={`text-2xl font-bold ${isWinner ? "text-green-600" : "text-gray-400"}`}>
+                                    className={`text-lg sm:text-2xl font-bold ${isWinner ? "text-green-600" : "text-gray-400"}`}>
                                     {myScore}
                                   </p>
                                   <span className="text-muted-foreground">
                                     -
                                   </span>
                                   <p
-                                    className={`text-2xl font-bold ${!isWinner && match.winner_id ? "text-green-600" : "text-gray-400"}`}>
+                                    className={`text-lg sm:text-2xl font-bold ${!isWinner && match.winner_id ? "text-green-600" : "text-gray-400"}`}>
                                     {oppScore}
                                   </p>
                                 </div>
@@ -181,31 +193,33 @@ export function AthleteTournamentDetail({
           {/* Classifica */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Trophy className="h-4 w-4" />
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Trophy className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                 Classifica {userGroup?.name}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-1 sm:space-y-2">
                 {ranking.map((team, index) => (
                   <div
                     key={team.id}
-                    className={`p-2 rounded border text-xs ${
+                    className={`p-2 rounded border text-xs sm:text-sm ${
                       team.team_name === userTeam?.team_name
                         ? "bg-blue-50 border-blue-300 font-semibold"
                         : "bg-gray-50"
                     }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <span className="font-bold mr-2">{index + 1}.</span>
-                        {team.team_name}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-bold mr-1 sm:mr-2 flex-shrink-0">
+                          {index + 1}.
+                        </span>
+                        <span className="truncate">{team.team_name}</span>
                       </div>
-                      <span className="font-semibold text-blue-600">
+                      <span className="font-semibold text-blue-600 flex-shrink-0">
                         {team.points}pt
                       </span>
                     </div>
-                    <div className="text-muted-foreground mt-1">
+                    <div className="text-xs text-muted-foreground mt-1">
                       {team.wins}V-{team.losses}S | {team.sets_won}:
                       {team.sets_lost}
                     </div>
@@ -216,11 +230,13 @@ export function AthleteTournamentDetail({
           </Card>
 
           {/* Statistiche */}
-          <Card className="mt-4">
+          <Card className="mt-3 sm:mt-4">
             <CardHeader>
-              <CardTitle className="text-sm">Le Tue Statistiche</CardTitle>
+              <CardTitle className="text-xs sm:text-sm">
+                Le Tue Statistiche
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
+            <CardContent className="space-y-2 text-xs sm:text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Partite Giocate</span>
                 <span className="font-semibold">

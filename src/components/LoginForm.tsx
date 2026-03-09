@@ -32,7 +32,7 @@ export function LoginForm() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-[calc(100vh-120px)]">
+    <div className="min-h-screen p-4 flex items-center justify-center bg-gradient-to-b from-blue-50 to-background">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-2 text-center">
           <div className="flex justify-center mb-2">
@@ -40,10 +40,12 @@ export function LoginForm() {
               <Trophy className="h-8 w-8 text-blue-600" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Beach Volley Manager</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">
+            Beach Volley Manager
+          </CardTitle>
           <p className="text-sm text-muted-foreground">Accesso Organizzatore</p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6">
           {loginError && (
             <div className="flex gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
               <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
@@ -54,7 +56,7 @@ export function LoginForm() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
                 Email
@@ -88,9 +90,9 @@ export function LoginForm() {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full text-xs sm:text-sm"
               disabled={isLoading || !email || !password}
-              size="lg">
+              size="sm">
               {isLoading ? "Accesso in corso..." : "Accedi"}
             </Button>
           </form>
@@ -106,8 +108,8 @@ export function LoginForm() {
             </div>
           </div>
 
-          <div className="space-y-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs font-semibold text-blue-900">
+          <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs font-semibold text-blue-900 line-clamp-2">
               Usa le credenziali di test (create su Supabase):
             </p>
             <div className="space-y-2">

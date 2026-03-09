@@ -429,12 +429,12 @@ export default function TournamentManagement() {
   }
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-3 sm:p-4">
       {/* Header */}
-      <div className="mb-6 space-y-4">
+      <div className="mb-4 sm:mb-6 space-y-4">
         {/* Back Button */}
         <Link to="/">
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Torna alla Home
           </Button>

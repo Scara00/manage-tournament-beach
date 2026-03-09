@@ -16,15 +16,17 @@ export function GroupsPanel({
   onToggleGroup,
 }: GroupsPanelProps) {
   return (
-    <div className="space-y-3">
-      <h2 className="text-lg font-semibold">Gironi</h2>
+    <div className="space-y-2 sm:space-y-3">
+      <h2 className="text-base sm:text-lg font-semibold">Gironi</h2>
       {groups.map((group) => (
         <Card key={group.id}>
           <CardHeader
             className="cursor-pointer"
             onClick={() => onToggleGroup(group.id)}>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{group.name}</CardTitle>
+              <CardTitle className="text-sm sm:text-base line-clamp-1">
+                {group.name}
+              </CardTitle>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                 {collapsedGroups[group.id] ? (
                   <ChevronDown className="h-4 w-4" />
@@ -37,16 +39,18 @@ export function GroupsPanel({
 
           {!collapsedGroups[group.id] && (
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-1 sm:space-y-2">
                 {group.teams.map((team, idx) => (
                   <div
                     key={team.id}
-                    className="flex items-center justify-between p-2 border rounded bg-gray-50">
-                    <div className="flex-1">
-                      <span className="font-semibold mr-3">{idx + 1}.</span>
-                      {team.name}
+                    className="flex items-center justify-between p-2 border rounded bg-gray-50 text-xs sm:text-sm">
+                    <div className="flex-1 min-w-0">
+                      <span className="font-semibold mr-1 sm:mr-3 flex-shrink-0">
+                        {idx + 1}.
+                      </span>
+                      <span className="truncate">{team.name}</span>
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-xs text-muted-foreground flex-shrink-0 ml-2 flex gap-1 sm:gap-2">
                       <Badge variant="outline" className="mr-2">
                         {team.points}pt
                       </Badge>

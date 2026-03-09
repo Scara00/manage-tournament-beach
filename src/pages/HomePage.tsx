@@ -87,117 +87,128 @@ export function HomePage() {
   }, [isAuthenticated]);
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="min-h-screen bg-background">
       {!isAuthenticated ? (
         <LoginForm />
       ) : (
         <>
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Gestione Tornei Beach Volley
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Organizza e gestisci i tuoi tornei di beach volley
-            </p>
-          </div>
-
-          {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Errore</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <Loader className="h-8 w-8 animate-spin text-blue-600 mb-4" />
-              <p className="text-muted-foreground">Caricamento tornei...</p>
+          <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            <div className="mb-6 sm:mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                Gestione Tornei Beach Volley
+              </h1>
+              <p className="text-sm sm:text-base text-muted-foreground mt-2">
+                Organizza e gestisci i tuoi tornei di beach volley
+              </p>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {tournaments.map((tournament) => (
-                  <Card
-                    key={tournament.id}
-                    className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <CardTitle className="text-lg">
-                          {tournament.name}
-                        </CardTitle>
-                        <Badge
-                          variant={getStatusBadgeVariant(tournament.status)}>
-                          {tournament.status}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {new Date(tournament.date).toLocaleDateString(
-                            "it-IT",
-                          )}
-                        </div>
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Users className="mr-2 h-4 w-4" />
-                          {tournament.participants} partecipanti
-                        </div>
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Trophy className="mr-2 h-4 w-4" />
-                          {tournament.location}
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <Badge variant="outline" className="text-xs">
-                            {tournament.category}
+
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Errore</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader className="h-8 w-8 animate-spin text-blue-600 mb-4" />
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  Caricamento tornei...
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {tournaments.map((tournament) => (
+                    <Card
+                      key={tournament.id}
+                      className="hover:shadow-lg transition-shadow cursor-pointer">
+                      <CardHeader className="pb-2 sm:pb-3">
+                        <div className="flex justify-between items-start gap-2">
+                          <CardTitle className="text-base sm:text-lg line-clamp-2">
+                            {tournament.name}
+                          </CardTitle>
+                          <Badge
+                            variant={getStatusBadgeVariant(tournament.status)}
+                            className="text-xs flex-shrink-0">
+                            {tournament.status}
                           </Badge>
-                          {tournament.status === "Attivo" && (
-                            <Badge variant="secondary" className="text-xs">
-                              {tournament.structure}
-                            </Badge>
-                          )}
                         </div>
-                        <div className="flex gap-2 pt-2">
-                          <Link
-                            to={`/tournament/${tournament.id}`}
-                            className="flex-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full">
-                              Dettagli
-                            </Button>
-                          </Link>
-                          {tournament.status === "Attivo" && (
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2 sm:space-y-3">
+                          <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
+                            <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">
+                              {new Date(tournament.date).toLocaleDateString(
+                                "it-IT",
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
+                            <Users className="mr-2 h-4 w-4 flex-shrink-0" />
+                            <span>{tournament.participants} partecipanti</span>
+                          </div>
+                          <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
+                            <Trophy className="mr-2 h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">
+                              {tournament.location}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center justify-between gap-1 text-xs pt-2">
+                            <Badge variant="outline" className="text-xs">
+                              {tournament.category}
+                            </Badge>
+                            {tournament.status === "Attivo" && (
+                              <Badge variant="secondary" className="text-xs">
+                                {tournament.structure}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2 pt-2">
                             <Link
-                              to={`/tournament/${tournament.id}/manage`}
-                              className="flex-1">
-                              <Button size="sm" className="w-full">
-                                Gestisci
+                              to={`/tournament/${tournament.id}`}
+                              className="w-full">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full text-xs sm:text-sm">
+                                Dettagli
                               </Button>
                             </Link>
-                          )}
+                            {tournament.status === "Attivo" && (
+                              <Link
+                                to={`/tournament/${tournament.id}/manage`}
+                                className="w-full">
+                                <Button
+                                  size="sm"
+                                  className="w-full text-xs sm:text-sm">
+                                  Gestisci
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {tournaments.length === 0 && (
-                <div className="text-center py-12">
-                  <Trophy className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Nessun torneo ancora
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Crea il tuo primo torneo di beach volley per iniziare
-                  </p>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              )}
-            </>
-          )}
+
+                {tournaments.length === 0 && (
+                  <div className="text-center py-12">
+                    <Trophy className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">
+                      Nessun torneo ancora
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Crea il tuo primo torneo di beach volley per iniziare
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </>
       )}
     </div>

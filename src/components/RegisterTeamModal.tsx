@@ -95,13 +95,17 @@ export function RegisterTeamModal({
     <div
       className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50 p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
-      <Card className="w-full max-w-md">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold">Register Team</h2>
-          <p className="text-sm text-gray-600 mt-1">{tournamentName}</p>
+      <Card className="w-full max-w-md p-0">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-lg sm:text-xl font-bold">Register Team</h2>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
+            {tournamentName}
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="p-4 sm:p-6 space-y-3 sm:space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -112,7 +116,7 @@ export function RegisterTeamModal({
           <div>
             <label
               htmlFor="team_name"
-              className="block text-sm font-medium text-gray-700 mb-2">
+              className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
               Team Name *
             </label>
             <Input
@@ -130,7 +134,7 @@ export function RegisterTeamModal({
           <div>
             <label
               htmlFor="player1_name"
-              className="block text-sm font-medium text-gray-700 mb-2">
+              className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
               Player 1 Name
             </label>
             <Input
@@ -147,7 +151,7 @@ export function RegisterTeamModal({
           <div>
             <label
               htmlFor="player2_name"
-              className="block text-sm font-medium text-gray-700 mb-2">
+              className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
               Player 2 Name
             </label>
             <Input
@@ -165,7 +169,7 @@ export function RegisterTeamModal({
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-gray-700 mb-2">
+                className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                 Email *
               </label>
               <Input
@@ -181,7 +185,7 @@ export function RegisterTeamModal({
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4">
             <Button
               type="button"
               variant="outline"

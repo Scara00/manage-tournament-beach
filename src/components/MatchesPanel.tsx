@@ -50,15 +50,17 @@ export function MatchesPanel({
   );
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-lg font-semibold">Partite</h2>
+    <div className="space-y-2 sm:space-y-3">
+      <h2 className="text-base sm:text-lg font-semibold">Partite</h2>
       {Object.entries(groupedMatches).map(([groupId, groupMatches]) => (
         <Card key={groupId}>
           <CardHeader
             className="cursor-pointer"
             onClick={() => onToggleGroup(Number(groupId))}>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Girone - Partite</CardTitle>
+              <CardTitle className="text-sm sm:text-base line-clamp-1">
+                Girone - Partite
+              </CardTitle>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                 {collapsedGroupMatches[Number(groupId)] ? (
                   <ChevronDown className="h-4 w-4" />
@@ -70,11 +72,13 @@ export function MatchesPanel({
           </CardHeader>
 
           {!collapsedGroupMatches[Number(groupId)] && (
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-1 sm:space-y-2">
               {groupMatches.map((match) => (
-                <div key={match.id} className="border rounded p-3 bg-gray-50">
+                <div
+                  key={match.id}
+                  className="border rounded p-2 sm:p-3 bg-gray-50">
                   {editingMatch === match.id ? (
-                    <div className="space-y-2">
+                    <div className="space-y-1 sm:space-y-2">
                       <div className="flex gap-2">
                         <Input
                           type="number"
@@ -83,9 +87,11 @@ export function MatchesPanel({
                             onScoreChange("team1", e.target.value)
                           }
                           placeholder="Score"
-                          className="h-8 text-xs flex-1"
+                          className="h-8 sm:h-9 text-xs sm:text-sm flex-1"
                         />
-                        <span className="px-2 py-1">-</span>
+                        <span className="px-1 sm:px-2 py-1 text-xs sm:text-sm">
+                          -
+                        </span>
                         <Input
                           type="number"
                           value={tempScores.team2}
@@ -93,14 +99,14 @@ export function MatchesPanel({
                             onScoreChange("team2", e.target.value)
                           }
                           placeholder="Score"
-                          className="h-8 text-xs flex-1"
+                          className="h-8 sm:h-9 text-xs sm:text-sm flex-1"
                         />
                       </div>
-                      <div className="flex gap-1 text-xs">
+                      <div className="flex gap-1 text-xs flex-col sm:flex-row">
                         <Button
                           onClick={() => onSaveScore(match.id)}
                           size="sm"
-                          className="h-6 flex-1 bg-green-600">
+                          className="h-6 sm:h-7 flex-1 bg-green-600 text-xs">
                           <Save className="h-2.5 w-2.5 mr-1" />
                           Salva
                         </Button>
@@ -114,9 +120,11 @@ export function MatchesPanel({
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="font-semibold">{match.team1Name}</div>
+                    <div className="space-y-1 sm:space-y-2">
+                      <div className="flex items-center justify-between text-xs sm:text-sm">
+                        <div className="font-semibold line-clamp-1">
+                          {match.team1Name}
+                        </div>
                         {match.status === "completed" ? (
                           <div className="font-bold">
                             {match.team1Score} - {match.team2Score}
@@ -126,7 +134,9 @@ export function MatchesPanel({
                             --
                           </div>
                         )}
-                        <div className="font-semibold">{match.team2Name}</div>
+                        <div className="font-semibold line-clamp-1">
+                          {match.team2Name}
+                        </div>
                       </div>
                       <div className="flex items-center justify-between text-xs">
                         <span>{getStatusBadge(match.status)}</span>
