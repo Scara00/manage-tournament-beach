@@ -2,8 +2,20 @@ import { useEffect, useState } from "react";
 import { AlertCircle, Users, MapPin, Calendar, Loader } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "../components/ui/carousel";
 import { RegisterTeamModal } from "../components/RegisterTeamModal";
 import { getTournamentsWithTeamCount } from "../lib/supabase";
+import {
+  sortTournamentsByStatus,
+  getStatusConfig,
+} from "../lib/tournament-status";
 import type { Tournament } from "../types";
 
 export function BrowseTournaments() {
@@ -72,15 +84,108 @@ export function BrowseTournaments() {
     );
   }
 
+  const groupedTournaments = sortTournamentsByStatus(tournaments);
+  const statusOrder = ["In Preparazione", "In Corso", "Attivo", "Completato"];
+
+  const renderTournamentCard = (tournament: Tournament) => {
+    const availableSpots = getAvailableSpots(tournament);
+    const deadlinePassed = isDeadlinePassed(tournament);
+    const statusConfig = getStatusConfig(
+      tournament.status || "In Preparazione",
+    );
+
+    return (
+      <Card
+        key={tournament.id}
+        className={`p-3 sm:p-4 hover:shadow-lg transition-shadow border-l-4 ${statusConfig.color.border} h-full`}>
+        <div className="flex justify-between items-start gap-2 mb-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              {statusConfig.icon}
+              <h2 className="text-sm sm:text-base font-bold text-gray-900 line-clamp-1">
+                {tournament.name}
+              </h2>
+            </div>
+            <Badge
+              className={`${statusConfig.color.badge} ${statusConfig.color.badgeText} text-xs mb-1 inline-block`}>
+              {statusConfig.label}
+            </Badge>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <div
+              className={`text-lg sm:text-xl font-bold ${statusConfig.color.text}`}>
+              {availableSpots}
+            </div>
+            <p className="text-xs text-gray-500">posti</p>
+          </div>
+        </div>
+
+        {tournament.category && (
+          <p className="text-xs text-gray-500 mb-1">{tournament.category}</p>
+        )}
+
+        {tournament.description && (
+          <p className="text-xs text-gray-600 mb-2 line-clamp-1">
+            {tournament.description}
+          </p>
+        )}
+
+        <div className="space-y-1 mb-2 text-xs text-gray-600">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-3 h-3 text-gray-400 flex-shrink-0" />
+            <span className="truncate">{formatDate(tournament.date)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
+            <span className="truncate">{tournament.location}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Users className="w-3 h-3 text-gray-400 flex-shrink-0" />
+            <span>
+              {tournament.participants || 0}/
+              {tournament.max_participants || "—"}
+            </span>
+          </div>
+        </div>
+
+        {tournament.entry_fee && (
+          <div className="mb-2 p-1.5 bg-gray-50 rounded text-center">
+            <p className="text-xs text-gray-600">Quota</p>
+            <p className="text-base font-bold text-gray-900">
+              €{tournament.entry_fee}
+            </p>
+          </div>
+        )}
+
+        {tournament.registration_deadline && (
+          <div className="mb-2 text-xs text-gray-500 border-t pt-1">
+            Scadenza: {formatDate(tournament.registration_deadline)}
+          </div>
+        )}
+
+        <Button
+          onClick={() => handleRegisterClick(tournament)}
+          disabled={availableSpots === 0 || deadlinePassed}
+          className="w-full">
+          {deadlinePassed
+            ? "Registrazione Chiusa"
+            : availableSpots === 0
+              ? "Completo"
+              : "Registra Squadra"}
+        </Button>
+      </Card>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            Available Tournaments
+      <div className="container max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Tornei Disponibili
           </h1>
           <p className="text-sm sm:text-base text-gray-600">
-            Register your team to compete in beach volleyball tournaments
+            Registra la tua squadra per competere nei tornei di beach volley
           </p>
         </div>
 
@@ -92,7 +197,7 @@ export function BrowseTournaments() {
               <button
                 onClick={fetchTournaments}
                 className="text-sm text-red-700 hover:text-red-600 mt-1 underline">
-                Try again
+                Riprova
               </button>
             </div>
           </div>
@@ -101,90 +206,64 @@ export function BrowseTournaments() {
         {tournaments.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-gray-500 text-lg">
-              No tournaments available at the moment.
+              Nessun torneo disponibile al momento.
             </p>
-            <p className="text-gray-400 text-sm mt-2">Check back soon!</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Controlla di nuovo tra poco!
+            </p>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:gap-6">
-            {tournaments.map((tournament) => {
-              const availableSpots = getAvailableSpots(tournament);
-              const deadlinePassed = isDeadlinePassed(tournament);
+          <div className="space-y-12">
+            {statusOrder.map((status, index) => {
+              const statusTournaments = groupedTournaments[status] || [];
+              if (statusTournaments.length === 0) return null;
+
+              const statusConfig = getStatusConfig(status);
 
               return (
-                <Card
-                  key={tournament.id}
-                  className="p-4 sm:p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex justify-between items-start gap-4 mb-4">
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-lg sm:text-2xl font-bold text-gray-900 line-clamp-2">
-                        {tournament.name}
+                <div
+                  key={status}
+                  className={`${index > 0 ? "pt-8 sm:pt-12 border-t" : ""}`}>
+                  {/* Section Header */}
+                  <div className="flex items-center gap-3 mb-6">
+                    {statusConfig.icon}
+                    <div>
+                      <h2 className="text-xl font-bold">
+                        {statusConfig.label}
                       </h2>
-                      <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                        {tournament.category}
+                      <p className="text-sm text-muted-foreground">
+                        {statusConfig.description}
                       </p>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                        {availableSpots}
-                      </div>
-                      <p className="text-xs text-gray-500">spots left</p>
+                    <div className="ml-auto">
+                      <Badge
+                        className={`${statusConfig.color.badge} ${statusConfig.color.badgeText}`}>
+                        {statusTournaments.length}
+                      </Badge>
                     </div>
                   </div>
 
-                  {tournament.description && (
-                    <p className="text-xs sm:text-sm text-gray-600 mb-4 line-clamp-2">
-                      {tournament.description}
-                    </p>
+                  {/* Carousel or Grid */}
+                  {statusTournaments.length === 1 ? (
+                    <div className="grid grid-cols-1">
+                      {renderTournamentCard(statusTournaments[0])}
+                    </div>
+                  ) : (
+                    <Carousel className="w-full" opts={{ align: "start" }}>
+                      <CarouselContent>
+                        {statusTournaments.map((tournament) => (
+                          <CarouselItem
+                            key={tournament.id}
+                            className="basis-full md:basis-1/2 lg:basis-1/2 xl:basis-1/3">
+                            {renderTournamentCard(tournament)}
+                          </CarouselItem>
+                        ))}
+                      </CarouselContent>
+                      <CarouselPrevious />
+                      <CarouselNext />
+                    </Carousel>
                   )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                      <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <span className="truncate">
-                        {formatDate(tournament.date)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                      <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <span className="truncate">{tournament.location}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                      <Users className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <span>
-                        {tournament.participants || 0}/
-                        {tournament.max_participants || "—"}
-                      </span>
-                    </div>
-                    {tournament.entry_fee && (
-                      <div className="text-xs sm:text-sm text-gray-600">
-                        <span className="font-medium">
-                          €{tournament.entry_fee}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {tournament.registration_deadline && (
-                    <div className="mb-4 text-xs sm:text-sm text-gray-500">
-                      Registration deadline:{" "}
-                      {formatDate(tournament.registration_deadline)}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button
-                      onClick={() => handleRegisterClick(tournament)}
-                      disabled={availableSpots === 0 || deadlinePassed}
-                      className="flex-1">
-                      {deadlinePassed
-                        ? "Registration Closed"
-                        : availableSpots === 0
-                          ? "Full"
-                          : "Register Team"}
-                    </Button>
-                  </div>
-                </Card>
+                </div>
               );
             })}
           </div>

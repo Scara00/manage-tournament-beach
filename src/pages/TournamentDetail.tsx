@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { getTournamentById } from "@/lib/supabase";
 import { useAuth } from "@/context/useAuth";
+import { TournamentBrackets } from "@/components/TournamentBrackets";
+import { KnockoutMatchEditor } from "@/components/KnockoutMatchEditor";
 import type { Tournament } from "@/types";
 
 export function TournamentDetail() {
@@ -24,6 +26,9 @@ export function TournamentDetail() {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "brackets">(
+    "overview",
+  );
 
   const tournamentId = id ? parseInt(id) : null;
 
@@ -310,14 +315,44 @@ export function TournamentDetail() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Bracket e Risultati</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Bracket e Risultati</CardTitle>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setActiveTab("overview")}
+                        className={`px-3 py-1 rounded text-sm font-medium transition ${
+                          activeTab === "overview"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}>
+                        Visualizza
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("brackets")}
+                        className={`px-3 py-1 rounded text-sm font-medium transition ${
+                          activeTab === "brackets"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}>
+                        Modifica
+                      </button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Trophy className="mx-auto h-12 w-12 mb-4" />
-                    <p>Il bracket del torneo sarà disponibile qui</p>
-                    <p className="text-sm mt-1">Feature in sviluppo</p>
-                  </div>
+                  {activeTab === "overview" ? (
+                    <div>
+                      {tournamentId && (
+                        <TournamentBrackets tournamentId={tournamentId} />
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      {tournamentId && (
+                        <KnockoutMatchEditor tournamentId={tournamentId} />
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
